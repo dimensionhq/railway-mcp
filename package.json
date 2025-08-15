@@ -41,6 +41,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.16.0",
+		"@sentry/node": "^10.5.0",
 		"dotenv": "^17.2.0",
 		"express": "^5.1.0",
 		"fuse.js": "^7.1.0",
@@ -63,4 +64,3 @@
 		"typescript-transform-paths": "^3.5.3"
 	}
 }
-

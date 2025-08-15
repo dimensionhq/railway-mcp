@@ -4,8 +4,12 @@ import { railwayClient } from '@/api/api-client.js';
 import { registerAllTools } from '@/tools/index.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { captureError, initializeSentry } from '@/utils/sentry.js';
 import express, { Request, Response } from 'express';
 import 'dotenv/config';
+
+// Initialize Sentry early
+initializeSentry();
 
 const main = async () => {
 	await railwayClient.initialize();
@@ -68,6 +72,11 @@ const main = async () => {
 			await transport.handleRequest(req, res, req.body);
 		} catch (error) {
 			console.error('Error handling MCP request:', error);
+			captureError(error as Error, { 
+				endpoint: '/mcp',
+				method: 'POST',
+				headers: req.headers
+			});
 			if (!res.headersSent) {
 				res.status(500).json({
 					jsonrpc: '2.0',
@@ -117,6 +126,7 @@ const main = async () => {
 	app.listen(PORT, (error) => {
 		if (error) {
 			console.error('Failed to start server:', error);
+			captureError(error, { event: 'server_startup_failed' });
 			process.exit(1);
 		}
 		console.log(
@@ -127,6 +137,7 @@ const main = async () => {
 
 main().catch((error) => {
 	console.error('Fatal error in main():', error);
+	captureError(error, { event: 'main_fatal_error' });
 	process.exit(1);
 });
 
