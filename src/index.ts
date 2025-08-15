@@ -4,7 +4,7 @@ import { railwayClient } from '@/api/api-client.js';
 import { registerAllTools } from '@/tools/index.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { captureError, initializeSentry } from '@/utils/sentry.js';
+import { captureError, initializeSentry, setupSentryExpressErrorHandler } from '@/utils/sentry.js';
 import express, { Request, Response } from 'express';
 import 'dotenv/config';
 
@@ -119,6 +119,9 @@ const main = async () => {
 			id: null,
 		});
 	});
+
+	// Setup Sentry Express error handler (must be after all routes)
+	setupSentryExpressErrorHandler(app);
 
 	// Start the server
 	const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
