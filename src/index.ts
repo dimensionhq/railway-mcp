@@ -4,12 +4,9 @@ import { railwayClient } from '@/api/api-client.js';
 import { registerAllTools } from '@/tools/index.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { captureError, initializeSentry, setupSentryExpressErrorHandler } from '@/utils/sentry.js';
+import { captureError, setupSentryExpressErrorHandler } from '@/utils/sentry.js';
 import express, { Request, Response } from 'express';
 import 'dotenv/config';
-
-// Initialize Sentry early
-initializeSentry();
 
 const main = async () => {
 	await railwayClient.initialize();
