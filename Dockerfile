@@ -1,51 +1,87 @@
-FROM node:20-alpine AS base
+########## base image ##########
+FROM node:22-alpine AS base
+
+# Install pnpm globally
+RUN npm install -g pnpm@latest
 
 # Set working directory
 WORKDIR /app
-
-# Copy package files
-COPY package.json package-lock.json ./
-
-# Install all dependencies (including devDependencies for TypeScript build)
-RUN npm install --frozen-lockfile
-
-# Copy source code
-COPY . .
-
-# Build the TypeScript code
-RUN npm run build
-
-# Production stage
-FROM node:20-alpine AS production
-
-# Set working directory
-WORKDIR /app
-
-# Copy package files
-COPY package.json package-lock.json ./
-
-# Install only production dependencies
-RUN npm install --prod --frozen-lockfile
-
-# Copy built application from base stage
-COPY --from=base /app/dist ./dist
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-  adduser -S nodejs -u 1001
+RUN addgroup --system --gid 1001 nodejs && \
+  adduser --system --uid 1001 --ingroup nodejs --shell /bin/sh nodejs
 
-# Change ownership of the app directory to nodejs user
-RUN chown -R nodejs:nodejs /app
+########## dependencies stage ##########
+FROM base AS deps
+
+# Copy package files
+COPY package.json pnpm-lock.yaml* ./
+
+# Install all dependencies (including devDependencies for build)
+RUN pnpm install --frozen-lockfile --ignore-scripts && \
+  pnpm store prune
+
+########## build stage ##########
+FROM base AS build
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy source files and config
+COPY package.json pnpm-lock.yaml* ./
+COPY tsconfig.json tsup.config.json ./
+COPY src ./src
+
+# Build the application using the build script from package.json
+RUN pnpm run build
+
+########## production dependencies ##########
+FROM base AS prod-deps
+
+# Copy package files
+COPY package.json pnpm-lock.yaml* ./
+
+# Install only production dependencies
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
+  pnpm store prune
+
+########## runtime stage ##########
+FROM node:22-alpine AS runtime
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+  adduser --system --uid 1001 --ingroup nodejs --shell /bin/sh nodejs
+
+WORKDIR /app
+
+# Set production environment
+ENV NODE_ENV=production
+ENV MCP_HTTP_HOST=0.0.0.0
+ENV MCP_HTTP_PORT=3000
+ENV PORT=3000
+
+# Copy production dependencies
+COPY --from=prod-deps --chown=nodejs:nodejs /app/node_modules ./node_modules
+
+# Copy built application
+COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
+
+# Copy package.json for the start script
+COPY --chown=nodejs:nodejs package.json ./
 
 # Switch to non-root user
 USER nodejs
 
-# Expose the port the app runs on
-EXPOSE 8080
-
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8080/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => { process.exit(1) })"
+  CMD node -e "require('http').get('http://localhost:${PORT}/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
-# Start the application
+# Expose port
+EXPOSE 3000
+
+# Use dumb-init to handle signals properly and run the start command from package.json
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["npm", "start"]

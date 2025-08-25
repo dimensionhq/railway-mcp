@@ -1,113 +1,101 @@
+import { RailwayApiClient } from '@/api/api-client.js';
+import { buildOutput } from '@/utils/output.js';
 import { BaseService } from './base.service.js';
-import { createSuccessResponse, createErrorResponse, formatError } from '@/utils/responses.js';
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { RegionCode } from '@/types.js';
-class VolumeService extends BaseService {
-  constructor() {
-    super();
-  }
+import { UserError } from 'fastmcp';
 
-  /**
-   * List all volumes in a project
-   * 
-   * @param projectId ID of the project
-   * @returns CallToolResult with formatted response
-   */
-  async listVolumes(projectId: string): Promise<CallToolResult> {
-    try {
-      const volumes = await this.client.volumes.listVolumes(projectId);
+export class VolumeService extends BaseService {
+	constructor(client: RailwayApiClient) {
+		super(client);
+	}
 
-      if (volumes.length === 0) {
-        return createSuccessResponse({
-          text: "No volumes found in this project.",
-          data: []
-        });
-      }
+	/**
+	 * List all volumes in a project
+	 *
+	 * @param projectId ID of the project
+	 */
+	async listVolumes(projectId: string) {
+		try {
+			const volumes = await this.client.volumes.listVolumes(projectId);
+			return buildOutput(volumes);
+		} catch (error) {
+			throw new UserError('Error listing volumes', {
+				error,
+			});
+		}
+	}
 
-      const volumeDetails = volumes.map(volume => 
-        `📦 ${volume.name} (ID: ${volume.id})
-Created: ${new Date(volume.createdAt).toLocaleString()}`
-      );
+	/**
+	 * Create a new volume in a project
+	 *
+	 * @param projectId ID of the project where the volume will be created
+	 * @param serviceId ID of the service to attach the volume to
+	 * @param environmentId ID of the environment to create the volume in
+	 * @param mountPath Path to mount the volume on
+	 */
+	async createVolume(
+		projectId: string,
+		serviceId: string,
+		environmentId: string,
+		mountPath: string,
+	) {
+		try {
+			const input = { projectId, serviceId, environmentId, mountPath };
 
-      return createSuccessResponse({
-        text: `Volumes in project:\n\n${volumeDetails.join('\n\n')}`,
-        data: volumes
-      });
-    } catch (error) {
-      return createErrorResponse(`Error listing volumes: ${formatError(error)}`);
-    }
-  }
+			const volume = await this.client.volumes.createVolume(input);
+			if (!volume) {
+				throw new UserError(
+					`Failed to create volume for ${serviceId} in environment ${environmentId}`,
+				);
+			}
 
-  /**
-   * Create a new volume in a project
-   * 
-   * @param projectId ID of the project where the volume will be created
-   * @param serviceId ID of the service to attach the volume to
-   * @param environmentId ID of the environment to create the volume in
-   * @param mountPath Path to mount the volume on
-   * @returns CallToolResult with formatted response
-   */
-  async createVolume(projectId: string, serviceId: string, environmentId: string, mountPath: string): Promise<CallToolResult> {
-    try {
-      const input = { projectId, serviceId, environmentId, mountPath };
+			return buildOutput(volume);
+		} catch (error) {
+			if (error instanceof UserError) throw error;
+			throw new UserError('Error creating volume', {
+				error,
+			});
+		}
+	}
 
-      const volume = await this.client.volumes.createVolume(input);
-      if (!volume) {
-        return createErrorResponse(`Error creating volume: Failed to create volume for ${serviceId} in environment ${environmentId}`);
-      }
-      
-      return createSuccessResponse({
-        text: `✅ Volume "${volume.name}" created successfully (ID: ${volume.id})`,
-        data: volume
-      });
-    } catch (error) {
-      return createErrorResponse(`Error creating volume: ${formatError(error)}`);
-    }
-  }
+	/**
+	 * Update a volume
+	 *
+	 * @param volumeId ID of the volume to update
+	 * @param name New name for the volume
+	 */
+	async updateVolume(volumeId: string, name: string) {
+		try {
+			const input = { name };
+			const volume = await this.client.volumes.updateVolume(volumeId, input);
 
-  /**
-   * Update a volume
-   * 
-   * @param volumeId ID of the volume to update
-   * @param name New name for the volume
-   * @returns CallToolResult with formatted response
-   */
-  async updateVolume(volumeId: string, name: string): Promise<CallToolResult> {
-    try {
-      const input = { name };
-      const volume = await this.client.volumes.updateVolume(volumeId, input);
-      
-      return createSuccessResponse({
-        text: `✅ Volume updated successfully to "${volume.name}" (ID: ${volume.id})`,
-        data: volume
-      });
-    } catch (error) {
-      return createErrorResponse(`Error updating volume: ${formatError(error)}`);
-    }
-  }
+			return buildOutput(volume);
+		} catch (error) {
+			throw new UserError('Error updating volume', {
+				error,
+			});
+		}
+	}
 
-  /**
-   * Delete a volume
-   * 
-   * @param volumeId ID of the volume to delete
-   * @returns CallToolResult with formatted response
-   */
-  async deleteVolume(volumeId: string): Promise<CallToolResult> {
-    try {
-      const success = await this.client.volumes.deleteVolume(volumeId);
-      
-      if (success) {
-        return createSuccessResponse({
-          text: "✅ Volume deleted successfully",
-          data: { success }
-        });
-      } else {
-        return createErrorResponse("Failed to delete volume");
-      }
-    } catch (error) {
-      return createErrorResponse(`Error deleting volume: ${formatError(error)}`);
-    }
-  }
+	/**
+	 * Delete a volume
+	 *
+	 * @param volumeId ID of the volume to delete
+	 */
+	async deleteVolume(volumeId: string) {
+		try {
+			const success = await this.client.volumes.deleteVolume(volumeId);
+
+			if (!success) {
+				throw new UserError('Failed to delete volume');
+			}
+
+			return buildOutput({ success });
+		} catch (error) {
+			if (error instanceof UserError) throw error;
+			throw new UserError('Error deleting volume', {
+				error,
+			});
+		}
+	}
 }
 
-export const volumeService = new VolumeService(); 

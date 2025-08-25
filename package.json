@@ -1,66 +1,35 @@
 {
-	"name": "@jasontanswe/railway-mcp",
-	"version": "1.3.0",
-	"main": "src/index.ts",
-	"type": "module",
+	"name": "railway-mcp-server",
+	"version": "1.0.0",
+	"private": true,
 	"scripts": {
-		"init": "ts-patch install -s",
-		"build": "tsc && tsc-alias",
-		"dev": "tsx watch src/index.ts",
-		"postbuild": "chmod +x dist/index.js",
-		"start": "node --import ./dist/instrumentation.js dist/index.js",
-		"prepublishOnly": "npm run build"
+		"build": "tsup",
+		"start": "node dist/index.js",
+		"dev": "dotenv -- tsx watch ./src/index.ts"
 	},
-	"bin": {
-		"railway-mcp": "dist/index.js"
+	"author": {
+		"name": "Dimension",
+		"email": "tech@dimension.dev",
+		"url": "https://dimension.dev"
 	},
-	"files": [
-		"dist"
-	],
-	"keywords": [
-		"railway",
-		"mcp",
-		"api",
-		"cli",
-		"model-context-protocol",
-		"railway-app"
-	],
-	"author": "Jason Tan",
-	"license": "MIT",
-	"description": "Model Context Protocol server for Railway.app - Enables AI agents to manage Railway infrastructure through natural language",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/jason-tan-swe/railway-mcp.git"
-	},
-	"bugs": {
-		"url": "https://github.com/jason-tan-swe/railway-mcp/issues"
-	},
-	"homepage": "https://github.com/jason-tan-swe/railway-mcp#readme",
-	"publishConfig": {
-		"access": "public"
+	"license": "ISC",
+	"engines": {
+		"node": ">=22.0.0"
 	},
 	"dependencies": {
-		"@modelcontextprotocol/sdk": "^1.16.0",
-		"@sentry/node": "^10.5.0",
-		"dotenv": "^17.2.0",
-		"express": "^5.1.0",
 		"fuse.js": "^7.1.0",
-		"zod": "^3.23.8"
+		"@sentry/node": "^10.5.0",
+		"fastmcp": "^3.14.4",
+		"winston": "^3.17.0",
+		"winston-transport-sentry-node": "^3.0.0",
+		"zod": "^4.0.17"
 	},
 	"devDependencies": {
-		"@semantic-release/changelog": "^6.0.3",
-		"@semantic-release/git": "^10.0.1",
-		"@types/express": "^5.0.3",
-		"@types/node": "^20.17.22",
-		"concurrently": "^9.1.2",
-		"nodemon": "^3.1.9",
-		"semantic-release": "^22.0.0",
-		"ts-node": "^10.9.2",
-		"ts-patch": "^3.3.0",
-		"tsc-alias": "^1.8.11",
-		"tsconfig-paths": "^4.2.0",
-		"tsx": "^4.20.3",
-		"typescript": "^5.8.2",
-		"typescript-transform-paths": "^3.5.3"
+		"@types/node": "^24.2.1",
+		"dotenv-cli": "^10.0.0",
+		"tsup": "^8.5.0",
+		"tsx": "^4.20.4",
+		"typescript": "^5.9.2"
 	}
 }
+

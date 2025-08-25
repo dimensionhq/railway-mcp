@@ -1,11 +1,18 @@
 import { RailwayApiClient } from '@/api/api-client.js';
-import { Service, ServiceInstance, ServiceCreateInput, ProjectResponse, RegionCode } from '@/types.js';
+import {
+	Service,
+	ServiceInstance,
+	ServiceCreateInput,
+	ProjectResponse,
+	RegionCode,
+} from '@/utils/types.js';
 
 export class ServiceRepository {
-  constructor(private client: RailwayApiClient) {}
+	constructor(private client: RailwayApiClient) {}
 
-  async listServices(projectId: string): Promise<Service[]> {
-    const data = await this.client.request<ProjectResponse>(`
+	async listServices(projectId: string): Promise<Service[]> {
+		const data = await this.client.request<ProjectResponse>(
+			`
       query project($projectId: String!) {
         project(id: $projectId) {
           services {
@@ -29,13 +36,21 @@ export class ServiceRepository {
           }
         }
       }
-    `, { projectId });
+    `,
+			{ projectId },
+		);
 
-    return data.project.services.edges.map(edge => edge.node);
-  }
+		return data.project.services.edges.map((edge) => edge.node);
+	}
 
-  async getServiceInstance(serviceId: string, environmentId: string): Promise<ServiceInstance | null> {
-    const data = await this.client.request<{ serviceInstance: ServiceInstance }>(`
+	async getServiceInstance(
+		serviceId: string,
+		environmentId: string,
+	): Promise<ServiceInstance | null> {
+		const data = await this.client.request<{
+			serviceInstance: ServiceInstance;
+		}>(
+			`
       query serviceInstance($serviceId: String!, $environmentId: String!) {
         serviceInstance(serviceId: $serviceId, environmentId: $environmentId) {
           id
@@ -60,20 +75,23 @@ export class ServiceRepository {
           watchPatterns
         }
       }
-    `, { serviceId, environmentId });
+    `,
+			{ serviceId, environmentId },
+		);
 
-    return data.serviceInstance || null;
-  }
+		return data.serviceInstance || null;
+	}
 
-  async createService(input: ServiceCreateInput): Promise<Service> {
-    const { projectId, name, source } = input;
-    const variables = {
-      projectId,
-      name,
-      source: source || undefined
-    };
+	async createService(input: ServiceCreateInput): Promise<Service> {
+		const { projectId, name, source } = input;
+		const variables = {
+			projectId,
+			name,
+			source: source || undefined,
+		};
 
-    const data = await this.client.request<{ serviceCreate: Service }>(`
+		const data = await this.client.request<{ serviceCreate: Service }>(
+			`
       mutation serviceCreate($projectId: String!, $name: String, $source: ServiceSourceInput) {
         serviceCreate(
         input: {
@@ -94,17 +112,20 @@ export class ServiceRepository {
           featureFlags
         }
       }
-    `, variables);
+    `,
+			variables,
+		);
 
-    return data.serviceCreate;
-  }
+		return data.serviceCreate;
+	}
 
-  async updateServiceInstance(
-    serviceId: string,
-    environmentId: string,
-    updates: Partial<ServiceInstance>
-  ): Promise<boolean> {
-    const data = await this.client.request<{ serviceInstanceUpdate: boolean }>(`
+	async updateServiceInstance(
+		serviceId: string,
+		environmentId: string,
+		updates: Partial<ServiceInstance>,
+	): Promise<boolean> {
+		const data = await this.client.request<{ serviceInstanceUpdate: boolean }>(
+			`
       mutation serviceInstanceUpdate(
         $serviceId: String!,
         $environmentId: String!,
@@ -130,24 +151,35 @@ export class ServiceRepository {
           }
         )
       }
-    `, { serviceId, environmentId, ...updates });
+    `,
+			{ serviceId, environmentId, ...updates },
+		);
 
-    return data.serviceInstanceUpdate;
-  }
+		return data.serviceInstanceUpdate;
+	}
 
-  async deleteService(serviceId: string): Promise<void> {
-    await this.client.request<{ serviceDelete: boolean }>(`
+	async deleteService(serviceId: string): Promise<void> {
+		await this.client.request<{ serviceDelete: boolean }>(
+			`
       mutation serviceDelete($serviceId: String!) {
         serviceDelete(id: $serviceId)
       }
-    `, { serviceId });
-  }
+    `,
+			{ serviceId },
+		);
+	}
 
-  async restartService(serviceId: string, environmentId: string): Promise<void> {
-    await this.client.request<{ serviceInstanceRedeploy: boolean }>(`
+	async restartService(
+		serviceId: string,
+		environmentId: string,
+	): Promise<void> {
+		await this.client.request<{ serviceInstanceRedeploy: boolean }>(
+			`
       mutation serviceInstanceRedeploy($serviceId: String!, $environmentId: String!) {
         serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
       }
-    `, { serviceId, environmentId });
-  }
-} 
+    `,
+			{ serviceId, environmentId },
+		);
+	}
+}

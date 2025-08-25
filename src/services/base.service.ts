@@ -1,9 +1,9 @@
-import { RailwayApiClient, railwayClient } from '@/api/api-client.js';
+import { RailwayApiClient } from '@/api/api-client.js';
 
 export class BaseService {
-  protected client: RailwayApiClient;
+	protected client: RailwayApiClient;
 
-  constructor() {
-    this.client = railwayClient;
-  }
-} 
+	constructor(client: RailwayApiClient) {
+		this.client = client;
+	}
+}

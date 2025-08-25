@@ -1,166 +1,142 @@
 import { BaseService } from '@/services/base.service.js';
-import { Service, ServiceInstance } from '@/types.js';
-import { createSuccessResponse, createErrorResponse, formatError } from '@/utils/responses.js';
+import { Service, ServiceInstance } from '@/utils/types.js';
+import { buildOutput } from '@/utils/output.js';
+import { RailwayApiClient } from '@/api/api-client.js';
+import { UserError } from 'fastmcp';
 
 export class ServiceService extends BaseService {
+	public constructor(client: RailwayApiClient) {
+		super(client);
+	}
 
-  public constructor() {
-    super();
-  }
+	async listServices(projectId: string) {
+		try {
+			const services = await this.client.services.listServices(projectId);
+			return buildOutput(services);
+		} catch (error) {
+			throw new UserError('Error listing services', {
+				error,
+			});
+		}
+	}
 
-  async listServices(projectId: string) {
-    try {
-      const services = await this.client.services.listServices(projectId);
+	async getServiceInfo(
+		projectId: string,
+		serviceId: string,
+		environmentId: string,
+	) {
+		try {
+			const [serviceInstance, deployments] = await Promise.all([
+				this.client.services.getServiceInstance(serviceId, environmentId),
+				this.client.deployments.listDeployments({
+					projectId,
+					serviceId,
+					environmentId,
+					limit: 5,
+				}),
+			]);
 
-      if (services.length === 0) {
-        return createSuccessResponse({
-          text: "No services found in this project.",
-          data: []
-        });
-      }
+			if (!serviceInstance) {
+				throw new UserError('Service instance not found.');
+			}
 
-      // Get latest deployment status for each service
-      const serviceDetails = await Promise.all(services.map(async (service: Service) => {
-        try {
-          const deployments = await this.client.deployments.listDeployments({
-            projectId,
-            serviceId: service.id,
-            limit: 1
-          });
-          
-          const latestDeployment = deployments[0];
-          if (latestDeployment) {
-            return `🚀 ${service.name} (ID: ${service.id})
-Status: ${latestDeployment.status}
-URL: ${latestDeployment.url || 'Not deployed'}`;
-          }
-          
-          return `🚀 ${service.name} (ID: ${service.id})
-Status: No deployments`;
-        } catch {
-          return `🚀 ${service.name} (ID: ${service.id})`;
-        }
-      }));
+			return buildOutput({ serviceInstance, deployments });
+		} catch (error) {
+			if (error instanceof UserError) throw error;
+			throw new UserError('Error getting service details', {
+				error,
+			});
+		}
+	}
 
-      return createSuccessResponse({
-        text: `Services in project:\n\n${serviceDetails.join('\n\n')}`,
-        data: services
-      });
-    } catch (error) {
-      return createErrorResponse(`Error listing services: ${formatError(error)}`);
-    }
-  }
+	async createServiceFromRepo(projectId: string, repo: string, name?: string) {
+		try {
+			const service = await this.client.services.createService({
+				projectId,
+				name,
+				source: {
+					repo,
+				},
+			});
 
-  async getServiceInfo(projectId: string, serviceId: string, environmentId: string) {
-    try {
-      const [serviceInstance, deployments] = await Promise.all([
-        this.client.services.getServiceInstance(serviceId, environmentId),
-        this.client.deployments.listDeployments({ projectId, serviceId, environmentId, limit: 5 })
-      ]);
+			return buildOutput(service);
+		} catch (error) {
+			throw new UserError('Error creating service', {
+				error,
+			});
+		}
+	}
 
-      if (!serviceInstance) {
-        return createErrorResponse(`Service instance not found.`);
-      }
+	async createServiceFromImage(
+		projectId: string,
+		image: string,
+		name?: string,
+	) {
+		try {
+			const service = await this.client.services.createService({
+				projectId,
+				name,
+				source: {
+					image,
+				},
+			});
 
-      const deploymentStatus = deployments.length > 0
-        ? `\nLatest Deployment: ${deployments[0].status} (${deployments[0].id})`
-        : '\nNo recent deployments';
+			return buildOutput(service);
+		} catch (error) {
+			throw new UserError('Error creating service', {
+				error,
+			});
+		}
+	}
 
-      const info = `🚀 Service: ${serviceInstance.serviceName}
-ID: ${serviceInstance.serviceId}
-Region: ${serviceInstance.region || 'Not set'}
-Replicas: ${serviceInstance.numReplicas || 1}
-Root Directory: ${serviceInstance.rootDirectory || '/'}
-Build Command: ${serviceInstance.buildCommand || 'Not set'}
-Start Command: ${serviceInstance.startCommand || 'Not set'}
-Health Check Path: ${serviceInstance.healthcheckPath || 'Not set'}
-Sleep Mode: ${serviceInstance.sleepApplication ? 'Enabled' : 'Disabled'}${deploymentStatus}`;
+	async updateService(
+		projectId: string,
+		serviceId: string,
+		environmentId: string,
+		config: Partial<ServiceInstance>,
+	) {
+		try {
+			const updated = await this.client.services.updateServiceInstance(
+				serviceId,
+				environmentId,
+				config,
+			);
+			if (!updated) {
+				throw new UserError(
+					`Failed to update service instance of ${serviceId} in environment ${environmentId}`,
+				);
+			}
 
-      return createSuccessResponse({
-        text: info,
-        data: { serviceInstance, deployments }
-      });
-    } catch (error) {
-      return createErrorResponse(`Error getting service details: ${formatError(error)}`);
-    }
-  }
+			return buildOutput({ success: true });
+		} catch (error) {
+			if (error instanceof UserError) throw error;
+			throw new UserError('Error updating service', {
+				error,
+			});
+		}
+	}
 
-  async createServiceFromRepo(projectId: string, repo: string, name?: string) {
-    try {
-      const service = await this.client.services.createService({
-        projectId,
-        name,
-        source: {
-          repo,
-        }
-      });
+	async deleteService(projectId: string, serviceId: string) {
+		try {
+			await this.client.services.deleteService(serviceId);
+			return buildOutput({ success: true });
+		} catch (error) {
+			throw new UserError('Error deleting service', {
+				error,
+			});
+		}
+	}
 
-      return createSuccessResponse({
-        text: `Created new service "${service.name}" (ID: ${service.id}) from GitHub repo "${repo}"`,
-        data: service
-      });
-    } catch (error) {
-      return createErrorResponse(`Error creating service: ${formatError(error)}`);
-    }
-  }
-
-  async createServiceFromImage(projectId: string, image: string, name?: string) {
-    try {
-      const service = await this.client.services.createService({
-        projectId,
-        name,
-        source: {
-          image,
-        }
-      });
-
-      return createSuccessResponse({
-        text: `Created new service "${service.name}" (ID: ${service.id}) from Docker image "${image}"`,
-        data: service
-      });
-    } catch (error) {
-      return createErrorResponse(`Error creating service: ${formatError(error)}`);
-    }
-  }
-
-  async updateService(projectId: string, serviceId: string, environmentId: string, config: Partial<ServiceInstance>) {
-    try {
-      const updated = await this.client.services.updateServiceInstance(serviceId, environmentId, config);
-      if (!updated) {
-        return createErrorResponse(`Error updating service: Failed to update service instance of ${serviceId} in environment ${environmentId}`);
-      }
-
-      return createSuccessResponse({
-        text: `Service configuration updated successfully`
-      });
-    } catch (error) {
-      return createErrorResponse(`Error updating service: ${formatError(error)}`);
-    }
-  }
-
-  async deleteService(projectId: string, serviceId: string) {
-    try {
-      await this.client.services.deleteService(serviceId);
-      return createSuccessResponse({
-        text: `Service deleted successfully`
-      });
-    } catch (error) {
-      return createErrorResponse(`Error deleting service: ${formatError(error)}`);
-    }
-  }
-
-  async restartService(serviceId: string, environmentId: string) {
-    try {
-      await this.client.services.restartService(serviceId, environmentId);
-      await new Promise(resolve => setTimeout(resolve, 5000)); // TEMPORARY UNTIL WEBHOOKS ARE IMPLEMENTED: Wait for 5 seconds to ensure the service is restarted
-      return createSuccessResponse({
-        text: `Service restarted successfully`
-      });
-    } catch (error) {
-      return createErrorResponse(`Error restarting service: ${formatError(error)}`);
-    }
-  }
+	async restartService(serviceId: string, environmentId: string) {
+		try {
+			await this.client.services.restartService(serviceId, environmentId);
+			await new Promise((resolve) => setTimeout(resolve, 5000)); // TEMPORARY UNTIL WEBHOOKS ARE IMPLEMENTED: Wait for 5 seconds to ensure the service is restarted
+			return buildOutput({ success: true });
+		} catch (error) {
+			throw new UserError('Error restarting service', {
+				error,
+			});
+		}
+	}
 }
 
-// Initialize and export the singleton instance
-export const serviceService = new ServiceService();

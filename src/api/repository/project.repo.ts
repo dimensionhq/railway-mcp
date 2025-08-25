@@ -1,11 +1,18 @@
 import { RailwayApiClient } from '@/api/api-client.js';
-import { Project, ProjectResponse, ProjectsResponse, Environment, Service, Connection } from '@/types.js';
+import {
+	Project,
+	ProjectResponse,
+	ProjectsResponse,
+	Environment,
+	Service,
+	Connection,
+} from '@/utils/types.js';
 
 export class ProjectRepository {
-  constructor(private client: RailwayApiClient) {}
+	constructor(private client: RailwayApiClient) {}
 
-  async listProjects(): Promise<Project[]> {
-    const data = await this.client.request<ProjectsResponse>(`
+	async listProjects(): Promise<Project[]> {
+		const data = await this.client.request<ProjectsResponse>(`
       query projects {
         projects {
           edges {
@@ -47,15 +54,22 @@ export class ProjectRepository {
       }
     `);
 
-    return data.projects.edges.map(edge => ({
-      ...edge.node,
-      environments: edge.node.environments || { edges: [], pageInfo: { hasNextPage: false, hasPreviousPage: false } },
-      services: edge.node.services || { edges: [], pageInfo: { hasNextPage: false, hasPreviousPage: false } }
-    }));
-  }
+		return data.projects.edges.map((edge) => ({
+			...edge.node,
+			environments: edge.node.environments || {
+				edges: [],
+				pageInfo: { hasNextPage: false, hasPreviousPage: false },
+			},
+			services: edge.node.services || {
+				edges: [],
+				pageInfo: { hasNextPage: false, hasPreviousPage: false },
+			},
+		}));
+	}
 
-  async getProject(projectId: string): Promise<Project | null> {
-    const data = await this.client.request<ProjectResponse>(`
+	async getProject(projectId: string): Promise<Project | null> {
+		const data = await this.client.request<ProjectResponse>(
+			`
       query project($projectId: String!) {
         project(id: $projectId) {
           id
@@ -117,17 +131,20 @@ export class ProjectRepository {
           subscriptionPlanLimit
         }
       }
-    `, { projectId });
+    `,
+			{ projectId },
+		);
 
-    if (!data.project) {
-      return null;
-    }
+		if (!data.project) {
+			return null;
+		}
 
-    return data.project;
-  }
+		return data.project;
+	}
 
-  async createProject(name: string, teamId?: string): Promise<Project> {
-    const data = await this.client.request<{ projectCreate: Project }>(`
+	async createProject(name: string, teamId?: string): Promise<Project> {
+		const data = await this.client.request<{ projectCreate: Project }>(
+			`
       mutation projectCreate($name: String!, $teamId: String) {
         projectCreate(
         input: {
@@ -163,25 +180,39 @@ export class ProjectRepository {
           }
         }
       }
-    `, { name, teamId });
+    `,
+			{ name, teamId },
+		);
 
-    return {
-      ...data.projectCreate,
-      environments: data.projectCreate.environments || { edges: [], pageInfo: { hasNextPage: false, hasPreviousPage: false } },
-      services: data.projectCreate.services || { edges: [], pageInfo: { hasNextPage: false, hasPreviousPage: false } }
-    };
-  }
+		return {
+			...data.projectCreate,
+			environments: data.projectCreate.environments || {
+				edges: [],
+				pageInfo: { hasNextPage: false, hasPreviousPage: false },
+			},
+			services: data.projectCreate.services || {
+				edges: [],
+				pageInfo: { hasNextPage: false, hasPreviousPage: false },
+			},
+		};
+	}
 
-  async deleteProject(projectId: string): Promise<void> {
-    await this.client.request<{ projectDelete: boolean }>(`
+	async deleteProject(projectId: string): Promise<void> {
+		await this.client.request<{ projectDelete: boolean }>(
+			`
       mutation projectDelete($projectId: String!) {
         projectDelete(id: $projectId)
       }
-    `, { projectId });
-  }
+    `,
+			{ projectId },
+		);
+	}
 
-  async listEnvironments(projectId: string): Promise<Environment[]> {
-    const data = await this.client.request<{ environments: Connection<Environment> }>(`
+	async listEnvironments(projectId: string): Promise<Environment[]> {
+		const data = await this.client.request<{
+			environments: Connection<Environment>;
+		}>(
+			`
       query environments($projectId: String!) {
         environments(projectId: $projectId) {
           edges {
@@ -198,13 +229,16 @@ export class ProjectRepository {
           }
         }
       }
-    `, { projectId });
+    `,
+			{ projectId },
+		);
 
-    return data.environments.edges.map(edge => edge.node);
-  }
+		return data.environments.edges.map((edge) => edge.node);
+	}
 
-  async listServices(projectId: string): Promise<Service[]> {
-    const data = await this.client.request<{ services: Connection<Service> }>(`
+	async listServices(projectId: string): Promise<Service[]> {
+		const data = await this.client.request<{ services: Connection<Service> }>(
+			`
       query services($projectId: String!) {
         services(projectId: $projectId) {
           edges {
@@ -223,8 +257,10 @@ export class ProjectRepository {
           }
         }
       }
-    `, { projectId });
+    `,
+			{ projectId },
+		);
 
-    return data.services.edges.map(edge => edge.node);
-  }
-} 
+		return data.services.edges.map((edge) => edge.node);
+	}
+}

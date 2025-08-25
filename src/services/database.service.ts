@@ -1,10 +1,8 @@
+import { RailwayApiClient } from '@/api/api-client.js';
 import { BaseService } from '@/services/base.service.js';
-import {
-	createSuccessResponse,
-	createErrorResponse,
-	formatError,
-} from '@/utils/responses.js';
-import { RegionCode } from '@/types.js';
+import { RegionCode } from '@/utils/types.js';
+import { buildOutput } from '@/utils/output';
+import { UserError } from 'fastmcp';
 
 interface DatabaseTemplate {
 	id: string;
@@ -45,8 +43,8 @@ interface DatabaseTemplate {
 }
 
 export class DatabaseService extends BaseService {
-	public constructor() {
-		super();
+	public constructor(client: RailwayApiClient) {
+		super(client);
 	}
 
 	async listDatabaseTypes() {
@@ -79,29 +77,11 @@ export class DatabaseService extends BaseService {
 					return acc;
 				}, {} as Record<string, Array<DatabaseTemplate>>);
 
-			const formattedDatabases = Object.entries(categorizedDatabases)
-				.map(
-					([category, databases]) => `
-📁 ${category}
-${databases
-	.map(
-		(db) => `  💾 ${db.name}
-     Id: ${db.id}
-     Description: ${db.description}`,
-	)
-	.join('\n')}
-`,
-				)
-				.join('\n');
-
-			return createSuccessResponse({
-				text: `Available database types:\n${formattedDatabases}`,
-				data: categorizedDatabases,
-			});
+			return buildOutput(categorizedDatabases);
 		} catch (error) {
-			return createErrorResponse(
-				`Error listing database types: ${formatError(error)}`,
-			);
+			throw new UserError('Error listing database types', {
+				error,
+			});
 		}
 	}
 
@@ -125,22 +105,18 @@ ${databases
 				.find((t) => t.id === id);
 
 			if (!template) {
-				return createErrorResponse(`Unsupported database`);
+				throw new UserError('Unsupported database');
 			}
 
 			// Get the first service from the template (database templates should only have one)
 			const services = Object.entries(template.serializedConfig.services);
 			if (services.length === 0) {
-				return createErrorResponse(
-					`Invalid database template: No services found`,
-				);
+				throw new UserError('Invalid database template: No services found');
 			}
 
 			const [_, serviceConfig] = services[0];
 			if (!serviceConfig.source?.image) {
-				return createErrorResponse(
-					`Invalid database template: No image source found`,
-				);
+				throw new UserError('Invalid database template: No image source found');
 			}
 
 			// Create the database service using the template's image
@@ -173,7 +149,7 @@ ${databases
 				environmentId,
 			);
 			if (!serviceInstance) {
-				return createErrorResponse(`Service instance not found.`);
+				throw new UserError('Service instance not found.');
 			}
 
 			const hasUpdatedServiceInstance =
@@ -183,7 +159,7 @@ ${databases
 					{ region },
 				);
 			if (!hasUpdatedServiceInstance) {
-				return createErrorResponse(
+				throw new UserError(
 					`Error updating service instance: Failed to update service instance of ${service.id} in environment ${environmentId}`,
 				);
 			}
@@ -203,7 +179,7 @@ ${databases
 				applicationPort: port,
 			});
 			if (!proxy) {
-				return createErrorResponse(
+				throw new UserError(
 					`Error creating proxy: Failed to create proxy for ${service.id} in environment ${environmentId}`,
 				);
 			}
@@ -219,25 +195,18 @@ ${databases
 				mountPath,
 			});
 			if (!volume) {
-				return createErrorResponse(
+				throw new UserError(
 					`Error creating volume: Failed to create volume for ${service.id} in environment ${environmentId}`,
 				);
 			}
 
-			return createSuccessResponse({
-				text:
-					`Created new ${template.name} service "${service.name}" (ID: ${service.id})\n` +
-					`Using image: ${serviceConfig.source.image}`,
-				data: service,
-			});
+			return buildOutput(service);
 		} catch (error) {
-			return createErrorResponse(
-				`Error creating database: ${formatError(error)}`,
-			);
+			if (error instanceof UserError) throw error;
+			throw new UserError('Error creating database', {
+				error,
+			});
 		}
 	}
 }
-
-// Initialize and export the singleton instance
-export const databaseService = new DatabaseService();
 

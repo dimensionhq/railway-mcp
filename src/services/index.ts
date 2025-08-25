@@ -1,9 +1,10 @@
-export { databaseService } from './database.service.js';
-export { deploymentService } from './deployment.service.js';
-export { domainService } from './domain.service.js';
-export { projectService } from './project.service.js';
-export { serviceService } from './service.service.js';
-export { tcpProxyService } from './tcpProxy.service.js';
-export { templatesService } from './templates.service.js';
-export { variableService } from './variable.service.js';
-export { volumeService } from './volume.service.js'; 
+export { DatabaseService } from './database.service.js';
+export { DeploymentService } from './deployment.service.js';
+export { DomainService } from './domain.service.js';
+export { ProjectService } from './project.service.js';
+export { ServiceService } from './service.service.js';
+export { TcpProxyService } from './tcpProxy.service.js';
+export { TemplatesService } from './templates.service.js';
+export { VariableService } from './variable.service.js';
+export { VolumeService } from './volume.service.js';
+

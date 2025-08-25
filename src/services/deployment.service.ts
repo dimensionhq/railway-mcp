@@ -1,15 +1,12 @@
+import { RailwayApiClient } from '@/api/api-client.js';
 import { BaseService } from '@/services/base.service.js';
-import { DeploymentLog } from '@/types.js';
-import {
-	createSuccessResponse,
-	createErrorResponse,
-	formatError,
-} from '@/utils/responses.js';
-import { getStatusEmoji } from '@/utils/helpers.js';
+import { DeploymentLog } from '@/utils/types.js';
+import { buildOutput } from '@/utils/output.js';
+import { UserError } from 'fastmcp';
 
 export class DeploymentService extends BaseService {
-	public constructor() {
-		super();
+	public constructor(client: RailwayApiClient) {
+		super(client);
 	}
 
 	async listDeployments(
@@ -26,33 +23,11 @@ export class DeploymentService extends BaseService {
 				limit,
 			});
 
-			if (deployments.length === 0) {
-				return createSuccessResponse({
-					text: 'No deployments found for this service.',
-					data: [],
-				});
-			}
-
-			const deploymentDetails = deployments.map((deployment) => {
-				const status = deployment.status.toLowerCase();
-				const emoji =
-					status === 'success' ? '✅' : status === 'failed' ? '❌' : '🔄';
-
-				return `${emoji} Deployment ${deployment.id}
-Status: ${deployment.status}
-Created: ${new Date(deployment.createdAt).toLocaleString()}
-Service: ${deployment.serviceId}
-${deployment.url ? `URL: ${deployment.url}` : ''}`;
-			});
-
-			return createSuccessResponse({
-				text: `Recent deployments:\n\n${deploymentDetails.join('\n\n')}`,
-				data: deployments,
-			});
+			return buildOutput(deployments);
 		} catch (error) {
-			return createErrorResponse(
-				`Error listing deployments: ${formatError(error)}`,
-			);
+			throw new UserError('Error listing deployments', {
+				error,
+			});
 		}
 	}
 
@@ -74,14 +49,11 @@ ${deployment.url ? `URL: ${deployment.url}` : ''}`;
 				commitSha,
 			});
 
-			return createSuccessResponse({
-				text: `Triggered new deployment (ID: ${deploymentId})`,
-				data: { deploymentId },
-			});
+			return buildOutput({ deploymentId });
 		} catch (error) {
-			return createErrorResponse(
-				`Error triggering deployment: ${formatError(error)}`,
-			);
+			throw new UserError('Error triggering deployment', {
+				error,
+			});
 		}
 	}
 
@@ -108,29 +80,11 @@ ${deployment.url ? `URL: ${deployment.url}` : ''}`;
 				})),
 			];
 
-			if (logs.length === 0) {
-				return createSuccessResponse({
-					text: `No logs found for deployment ${deploymentId}`,
-					data: [],
-				});
-			}
-
-			const formattedLogs = logs
-				.map((log) => {
-					const timestamp = new Date(log.timestamp).toLocaleString();
-					const severity = log.severity.toLowerCase();
-					const emoji =
-						severity === 'error' ? '❌' : severity === 'warn' ? '⚠️' : '📝';
-					return `[${log.type}] [${timestamp}] ${emoji} ${log.message}`;
-				})
-				.join('\n');
-
-			return createSuccessResponse({
-				text: formattedLogs,
-				data: logs,
-			});
+			return buildOutput(logs);
 		} catch (error) {
-			return createErrorResponse(`Error fetching logs: ${formatError(error)}`);
+			throw new UserError('Error fetching logs', {
+				error,
+			});
 		}
 	}
 
@@ -143,20 +97,13 @@ ${deployment.url ? `URL: ${deployment.url}` : ''}`;
 			const status = await this.client.deployments.healthCheckDeployment(
 				deploymentId,
 			);
-			const emoji = getStatusEmoji(status);
 
-			return createSuccessResponse({
-				text: `Deployment Status: ${emoji} ${status}`,
-				data: { status },
-			});
+			return buildOutput({ status });
 		} catch (error) {
-			return createErrorResponse(
-				`Error checking deployment health: ${formatError(error)}`,
-			);
+			throw new UserError('Error checking deployment health', {
+				error,
+			});
 		}
 	}
 }
-
-// Initialize and export the singleton instance
-export const deploymentService = new DeploymentService();
 

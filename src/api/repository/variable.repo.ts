@@ -1,22 +1,35 @@
 import { RailwayApiClient } from '@/api/api-client.js';
-import { Variable, VariableUpsertInput, VariableDeleteInput, VariablesResponse } from '@/types.js';
+import {
+	Variable,
+	VariableUpsertInput,
+	VariableDeleteInput,
+	VariablesResponse,
+} from '@/utils/types.js';
 
 export class VariableRepository {
-  constructor(private client: RailwayApiClient) {}
+	constructor(private client: RailwayApiClient) {}
 
-  async getVariables(projectId: string, environmentId: string, serviceId?: string): Promise<Record<string, string>> {
-    const data = await this.client.request<VariablesResponse>(`
+	async getVariables(
+		projectId: string,
+		environmentId: string,
+		serviceId?: string,
+	): Promise<Record<string, string>> {
+		const data = await this.client.request<VariablesResponse>(
+			`
       query variables($projectId: String!, $environmentId: String!, $serviceId: String) {
         variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
       }
-    `, { projectId, environmentId, serviceId });
+    `,
+			{ projectId, environmentId, serviceId },
+		);
 
-    return data.variables || {};
-  }
+		return data.variables || {};
+	}
 
-  async upsertVariable(input: VariableUpsertInput): Promise<void> {
-    const { projectId, environmentId, serviceId, name, value } = input;
-    await this.client.request<{ variableUpsert: boolean }>(`
+	async upsertVariable(input: VariableUpsertInput): Promise<void> {
+		const { projectId, environmentId, serviceId, name, value } = input;
+		await this.client.request<{ variableUpsert: boolean }>(
+			`
       mutation variableUpsert(
         $projectId: String!,
         $environmentId: String!,
@@ -34,21 +47,24 @@ export class VariableRepository {
           }
         )
       }
-    `, { projectId, environmentId, serviceId, name, value });
-  }
+    `,
+			{ projectId, environmentId, serviceId, name, value },
+		);
+	}
 
-  async upsertVariables(inputs: VariableUpsertInput[]): Promise<void> {
-    // Process variables in batches to avoid overwhelming the API
-    const batchSize = 10;
-    for (let i = 0; i < inputs.length; i += batchSize) {
-      const batch = inputs.slice(i, i + batchSize);
-      await Promise.all(batch.map(input => this.upsertVariable(input)));
-    }
-  }
+	async upsertVariables(inputs: VariableUpsertInput[]): Promise<void> {
+		// Process variables in batches to avoid overwhelming the API
+		const batchSize = 10;
+		for (let i = 0; i < inputs.length; i += batchSize) {
+			const batch = inputs.slice(i, i + batchSize);
+			await Promise.all(batch.map((input) => this.upsertVariable(input)));
+		}
+	}
 
-  async deleteVariable(input: VariableDeleteInput): Promise<void> {
-    const { projectId, environmentId, serviceId, name } = input;
-    await this.client.request<{ variableDelete: boolean }>(`
+	async deleteVariable(input: VariableDeleteInput): Promise<void> {
+		const { projectId, environmentId, serviceId, name } = input;
+		await this.client.request<{ variableDelete: boolean }>(
+			`
       mutation variableDelete(
         $projectId: String!,
         $environmentId: String!,
@@ -64,16 +80,24 @@ export class VariableRepository {
           }
         )
       }
-    `, { projectId, environmentId, serviceId, name });
-  }
+    `,
+			{ projectId, environmentId, serviceId, name },
+		);
+	}
 
-  async listVariables(serviceId: string, environmentId: string): Promise<Variable[]> {
-    const data = await this.client.request<{ variables: Variable[] }>(`
+	async listVariables(
+		serviceId: string,
+		environmentId: string,
+	): Promise<Variable[]> {
+		const data = await this.client.request<{ variables: Variable[] }>(
+			`
       query variables($serviceId: String!, $environmentId: String!) {
         variables(serviceId: $serviceId, environmentId: $environmentId)
       }
-    `, { serviceId, environmentId });
+    `,
+			{ serviceId, environmentId },
+		);
 
-    return data.variables || [];
-  }
-} 
+		return data.variables || [];
+	}
+}
