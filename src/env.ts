@@ -3,7 +3,7 @@ import { z } from 'zod';
 const envSchema = z.object({
 	NODE_ENV: z.enum(['development', 'production', 'staging', 'test']).optional(),
 
-	PORT: z.number().int().min(1).max(65535).default(8081),
+	PORT: z.coerce.number().int().min(1).max(65535),
 
 	SENTRY_DSN: z.string(),
 });
