@@ -32,23 +32,25 @@ const allTools = [
 		description: formatToolDescription({
 			type: 'QUERY',
 			description:
-				"List all available database types that can be deployed using Railway's official templates",
+				"List all available database types that can be deployed using Railway's official templates. Returns database options like PostgreSQL, MySQL, Redis, MongoDB, etc. with their template IDs for deployment.",
 			bestFor: [
-				'Discovering supported database types',
-				'Planning database deployments',
-				'Checking template availability',
+				'Discovering supported database types before deployment',
+				'Planning database deployments and architecture decisions',
+				'Checking template availability for specific database versions',
+				'Getting template IDs needed for RAILWAY_TEMPLATE_DEPLOY',
 			],
 			notFor: [
-				'Listing existing databases',
-				'Getting database connection details',
+				'Listing existing deployed databases (use RAILWAY_SERVICE_LIST)',
+				'Getting database connection details (use RAILWAY_VARIABLE_LIST)',
+				'Checking database status (use RAILWAY_SERVICE_INFO)',
 			],
 			relations: {
-				nextSteps: ['RAILWAY_DATABASE_DEPLOY'],
-				alternatives: ['service_create_from_image'],
-				related: [
-					'RAILWAY_DATABASE_DEPLOY',
+				nextSteps: ['RAILWAY_TEMPLATE_DEPLOY', 'RAILWAY_PROJECT_CREATE'],
+				alternatives: [
 					'RAILWAY_SERVICE_CREATE_FROM_IMAGE',
+					'RAILWAY_TEMPLATE_LIST',
 				],
+				related: ['RAILWAY_TEMPLATE_LIST', 'RAILWAY_SERVICE_CREATE_FROM_IMAGE'],
 			},
 		}),
 		schema: listDatabaseTypesToolSchema,

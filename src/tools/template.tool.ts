@@ -10,7 +10,7 @@ const templateListToolSchema = z.object({
 		.string()
 		.optional()
 		.describe(
-			'Optional search query to filter templates by name and description',
+			'Optional: Search query to filter templates by name and description (e.g., "postgres", "redis", "nextjs", "django"). Leave empty to see all available templates.',
 		),
 });
 
@@ -35,14 +35,26 @@ const templateListToolHandler = async (
 };
 
 const templateDeployToolSchema = z.object({
-	projectId: z.string().describe('ID of the project to create the service in'),
-	templateId: z.string().describe('ID of the template to use'),
-	environmentId: z.string().describe('ID of the environment to deploy to'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project to create the service in (obtain from RAILWAY_PROJECT_LIST)',
+		),
+	templateId: z
+		.string()
+		.describe(
+			'ID of the template to use (obtain from RAILWAY_TEMPLATE_LIST or RAILWAY_DATABASE_LIST_TYPES)',
+		),
+	environmentId: z
+		.string()
+		.describe(
+			'ID of the environment to deploy to (obtain from RAILWAY_PROJECT_ENVIRONMENTS). Usually production environment.',
+		),
 	teamId: z
 		.string()
 		.optional()
 		.describe(
-			'ID of the team to create the service in (if not provided, will use the default team)',
+			'Optional: Team ID to create the service under. If not provided, uses your default team or personal account.',
 		),
 });
 
@@ -73,7 +85,11 @@ const templateDeployToolHandler = async (
 };
 
 const templateGetWorkflowStatusToolSchema = z.object({
-	workflowId: z.string().describe('ID of the workflow to get the status of'),
+	workflowId: z
+		.string()
+		.describe(
+			'ID of the workflow to get the status of (obtain from RAILWAY_TEMPLATE_DEPLOY response). Used to track deployment progress.',
+		),
 });
 
 const templateGetWorkflowStatusToolHandler = async (
@@ -101,13 +117,19 @@ const allTools = [
 		name: 'RAILWAY_TEMPLATE_LIST',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'List all available templates on Railway',
+			description:
+				'List all available templates on Railway including databases, frameworks, and starter applications. Templates provide pre-configured services with optimal settings.',
 			bestFor: [
-				'Discovering available templates',
-				'Planning service deployments',
-				'Finding template IDs and sources',
+				'Discovering available templates for databases and applications',
+				'Planning service deployments with pre-configured setups',
+				'Finding template IDs needed for deployment',
+				'Exploring starter templates for popular frameworks',
 			],
-			notFor: ['Listing existing services', 'Getting service details'],
+			notFor: [
+				'Listing existing deployed services (use RAILWAY_SERVICE_LIST)',
+				'Getting details of deployed services (use RAILWAY_SERVICE_INFO)',
+				'Custom deployments from code (use RAILWAY_SERVICE_CREATE_FROM_REPO)',
+			],
 			relations: {
 				nextSteps: ['RAILWAY_TEMPLATE_DEPLOY'],
 				alternatives: [
@@ -124,25 +146,30 @@ const allTools = [
 		name: 'RAILWAY_TEMPLATE_DEPLOY',
 		description: formatToolDescription({
 			type: 'WORKFLOW',
-			description: 'Deploy a new service from a template',
+			description:
+				'Deploy a new service from a Railway template. This creates a fully configured service with optimal defaults and automatic setup.',
 			bestFor: [
-				'Starting new services from templates',
-				'Quick service deployment',
-				'Using pre-configured templates',
+				'Deploying databases (PostgreSQL, MySQL, Redis, MongoDB) with optimal configuration',
+				'Quick deployment of popular frameworks and starter applications',
+				'Using pre-configured templates with best practices',
+				'Setting up services with automatic environment variables and networking',
 			],
 			notFor: [
-				'Custom service configurations',
-				'GitHub repository deployments (use RAILWAY_SERVICE_CREATE_FROM_REPO)',
+				'Custom applications from your own code (use RAILWAY_SERVICE_CREATE_FROM_REPO)',
+				'Heavily customized service configurations',
+				'Existing Docker images (use RAILWAY_SERVICE_CREATE_FROM_IMAGE)',
 			],
 			relations: {
-				prerequisites: ['RAILWAY_TEMPLATE_LIST'],
+				prerequisites: ['RAILWAY_TEMPLATE_LIST', 'RAILWAY_PROJECT_LIST'],
 				alternatives: [
 					'RAILWAY_SERVICE_CREATE_FROM_REPO',
 					'RAILWAY_SERVICE_CREATE_FROM_IMAGE',
-					'RAILWAY_DATABASE_DEPLOY',
 				],
-				nextSteps: ['RAILWAY_SERVICE_INFO', 'RAILWAY_VARIABLE_LIST'],
-				related: ['RAILWAY_SERVICE_UPDATE', 'RAILWAY_DEPLOYMENT_TRIGGER'],
+				nextSteps: [
+					'RAILWAY_TEMPLATE_GET_WORKFLOW_STATUS',
+					'RAILWAY_SERVICE_INFO',
+				],
+				related: ['RAILWAY_VARIABLE_LIST', 'RAILWAY_TCP_PROXY_CREATE'],
 			},
 		}),
 		schema: templateDeployToolSchema,
@@ -152,17 +179,23 @@ const allTools = [
 		name: 'RAILWAY_TEMPLATE_GET_WORKFLOW_STATUS',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Get the status of a workflow',
+			description:
+				'Get the status of a template deployment workflow. Shows progress, completion status, and any errors during template deployment.',
 			bestFor: [
-				'Checking workflow status',
-				'Monitoring template deployment progress',
-				'Verifying deployment completion',
+				'Checking template deployment workflow status and progress',
+				'Monitoring template deployment progress in real-time',
+				'Verifying successful template deployment completion',
+				'Debugging failed template deployments',
 			],
-			notFor: ['Creating new services'],
+			notFor: [
+				'Creating new services (use RAILWAY_TEMPLATE_DEPLOY)',
+				'Checking service status after deployment (use RAILWAY_SERVICE_INFO)',
+				'Getting deployment logs (use RAILWAY_DEPLOYMENT_LOGS)',
+			],
 			relations: {
 				prerequisites: ['RAILWAY_TEMPLATE_DEPLOY'],
-				nextSteps: ['RAILWAY_SERVICE_INFO'],
-				related: ['RAILWAY_TEMPLATE_LIST', 'RAILWAY_TEMPLATE_DEPLOY'],
+				nextSteps: ['RAILWAY_SERVICE_INFO', 'RAILWAY_SERVICE_LIST'],
+				related: ['RAILWAY_DEPLOYMENT_STATUS', 'RAILWAY_SERVICE_INFO'],
 			},
 		}),
 		schema: templateGetWorkflowStatusToolSchema,

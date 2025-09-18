@@ -7,7 +7,11 @@ import { UserError } from 'fastmcp';
 import { z } from 'zod';
 
 const serviceListToolSchema = z.object({
-	projectId: z.string().describe('ID of the project to list services from'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project to list services from (obtain from RAILWAY_PROJECT_LIST)',
+		),
 });
 
 const serviceListToolHandler = async (
@@ -31,12 +35,20 @@ const serviceListToolHandler = async (
 };
 
 const serviceInfoToolSchema = z.object({
-	projectId: z.string().describe('ID of the project containing the service'),
-	serviceId: z.string().describe('ID of the service to get information about'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project containing the service (obtain from RAILWAY_PROJECT_LIST)',
+		),
+	serviceId: z
+		.string()
+		.describe(
+			'ID of the service to get information about (obtain from RAILWAY_SERVICE_LIST)',
+		),
 	environmentId: z
 		.string()
 		.describe(
-			'ID of the environment to check (usually obtained from service_list)',
+			'ID of the environment to check (obtain from RAILWAY_SERVICE_LIST response). Usually production environment.',
 		),
 });
 
@@ -62,11 +74,22 @@ const serviceInfoToolHandler = async (
 };
 
 const serviceCreateFromRepoToolSchema = z.object({
-	projectId: z.string().describe('ID of the project to create the service in'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project to create the service in (obtain from RAILWAY_PROJECT_LIST)',
+		),
 	repo: z
 		.string()
-		.describe("GitHub repository URL or name (e.g., 'owner/repo')"),
-	name: z.string().optional().describe('Optional custom name for the service'),
+		.describe(
+			"GitHub repository URL or name. Examples: 'https://github.com/user/repo', 'user/repo', or 'user/repo#branch' for specific branch.",
+		),
+	name: z
+		.string()
+		.optional()
+		.describe(
+			'Optional: Custom name for the service. If omitted, Railway uses the repository name. Useful for clarity in multi-service projects.',
+		),
 });
 
 const serviceCreateFromRepoToolHandler = async (
@@ -91,11 +114,22 @@ const serviceCreateFromRepoToolHandler = async (
 };
 
 const serviceCreateFromImageToolSchema = z.object({
-	projectId: z.string().describe('ID of the project to create the service in'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project to create the service in (obtain from RAILWAY_PROJECT_LIST)',
+		),
 	image: z
 		.string()
-		.describe("Docker image to use (e.g., 'postgres:13-alpine')"),
-	name: z.string().optional().describe('Optional custom name for the service'),
+		.describe(
+			"Docker image to use. Examples: 'postgres:13-alpine', 'redis:7-alpine', 'nginx:latest', 'node:18-alpine'. Include tag for version control.",
+		),
+	name: z
+		.string()
+		.optional()
+		.describe(
+			'Optional: Custom name for the service. If omitted, Railway uses the image name. Recommended for databases and multiple instances.',
+		),
 });
 
 const serviceCreateFromImageToolHandler = async (
@@ -120,40 +154,58 @@ const serviceCreateFromImageToolHandler = async (
 };
 
 const serviceUpdateToolSchema = z.object({
-	projectId: z.string().describe('ID of the project containing the service'),
-	serviceId: z.string().describe('ID of the service to update'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project containing the service (obtain from RAILWAY_PROJECT_LIST)',
+		),
+	serviceId: z
+		.string()
+		.describe('ID of the service to update (obtain from RAILWAY_SERVICE_LIST)'),
 	environmentId: z
 		.string()
 		.describe(
-			'ID of the environment to update (usually obtained from service_info)',
+			'ID of the environment to update (obtain from RAILWAY_SERVICE_INFO or RAILWAY_SERVICE_LIST). Usually production environment.',
 		),
 	region: RegionCodeSchema.optional().describe(
-		'Optional: Region to deploy the service in',
+		'Optional: Region to deploy the service in (us-west1, us-east4, etc.). Changes require redeployment.',
 	),
 	rootDirectory: z
 		.string()
 		.optional()
-		.describe('Optional: Root directory containing the service code'),
+		.describe(
+			'Optional: Root directory containing the service code (e.g., "backend", "api", "."). Useful for monorepos.',
+		),
 	buildCommand: z
 		.string()
 		.optional()
-		.describe('Optional: Command to build the service'),
+		.describe(
+			'Optional: Command to build the service (e.g., "npm run build", "yarn build", "make build"). Overrides auto-detection.',
+		),
 	startCommand: z
 		.string()
 		.optional()
-		.describe('Optional: Command to start the service'),
+		.describe(
+			'Optional: Command to start the service (e.g., "npm start", "node index.js", "python app.py"). Overrides auto-detection.',
+		),
 	numReplicas: z
 		.number()
 		.optional()
-		.describe('Optional: Number of service replicas to run'),
+		.describe(
+			'Optional: Number of service replicas to run (1-20). Higher values for load balancing and availability.',
+		),
 	healthcheckPath: z
 		.string()
 		.optional()
-		.describe('Optional: Path for health checks'),
+		.describe(
+			'Optional: HTTP path for health checks (e.g., "/health", "/api/status"). Used for deployment verification.',
+		),
 	sleepApplication: z
 		.boolean()
 		.optional()
-		.describe('Optional: Whether to enable sleep mode'),
+		.describe(
+			'Optional: Enable sleep mode to reduce costs. Service sleeps when inactive and wakes on requests (adds cold start delay).',
+		),
 });
 
 const serviceUpdateToolHandler = async (
@@ -183,8 +235,16 @@ const serviceUpdateToolHandler = async (
 };
 
 const serviceDeleteToolSchema = z.object({
-	projectId: z.string().describe('ID of the project containing the service'),
-	serviceId: z.string().describe('ID of the service to delete'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project containing the service (obtain from RAILWAY_PROJECT_LIST)',
+		),
+	serviceId: z
+		.string()
+		.describe(
+			'ID of the service to delete (obtain from RAILWAY_SERVICE_LIST). WARNING: Permanently deletes service and data.',
+		),
 });
 
 const serviceDeleteToolHandler = async (
@@ -208,11 +268,15 @@ const serviceDeleteToolHandler = async (
 };
 
 const serviceRestartToolSchema = z.object({
-	serviceId: z.string().describe('ID of the service to restart'),
+	serviceId: z
+		.string()
+		.describe(
+			'ID of the service to restart (obtain from RAILWAY_SERVICE_LIST)',
+		),
 	environmentId: z
 		.string()
 		.describe(
-			'ID of the environment where the service should be restarted (usually obtained from service_info)',
+			'ID of the environment where the service should be restarted (obtain from RAILWAY_SERVICE_INFO). Usually production environment.',
 		),
 });
 
@@ -241,11 +305,18 @@ const allTools = [
 		name: 'RAILWAY_SERVICE_LIST',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'List all services in a specific Railway project',
+			description:
+				'List all services in a specific Railway project. Returns service names, IDs, types, status, and environment information needed for other service operations.',
 			bestFor: [
-				"Getting an overview of a project's services",
-				'Finding service IDs',
-				'Checking service status',
+				'Getting an overview of all services in a project and their current status',
+				'Finding service IDs needed for other service operations',
+				'Checking which services are running, building, or crashed',
+				'Understanding project architecture and service relationships',
+			],
+			notFor: [
+				'Getting detailed service configuration (use RAILWAY_SERVICE_INFO)',
+				'Listing projects (use RAILWAY_PROJECT_LIST)',
+				'Managing individual services (use specific service tools)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_PROJECT_LIST'],
@@ -260,16 +331,23 @@ const allTools = [
 		name: 'RAILWAY_SERVICE_INFO',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Get detailed information about a specific service',
+			description:
+				'Get comprehensive information about a specific service. Returns configuration, deployment status, resource usage, domains, variables, and health metrics.',
 			bestFor: [
-				'Viewing service configuration and status',
-				'Checking deployment details',
-				'Monitoring service health',
+				'Viewing detailed service configuration and current status',
+				'Checking deployment details and build information',
+				'Monitoring service health and resource usage',
+				'Getting environment and domain information for the service',
+			],
+			notFor: [
+				'Listing all services (use RAILWAY_SERVICE_LIST)',
+				'Getting deployment logs (use RAILWAY_DEPLOYMENT_LOGS)',
+				'Managing service configuration (use RAILWAY_SERVICE_UPDATE)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST'],
 				nextSteps: ['RAILWAY_DEPLOYMENT_LIST', 'RAILWAY_VARIABLE_LIST'],
-				related: ['RAILWAY_SERVICE_UPDATE', 'RAILWAY_DEPLOYMENT_TRIGGER'],
+				related: ['RAILWAY_SERVICE_UPDATE', 'RAILWAY_DOMAIN_LIST'],
 			},
 		}),
 		schema: serviceInfoToolSchema,
@@ -279,25 +357,28 @@ const allTools = [
 		name: 'RAILWAY_SERVICE_CREATE_FROM_REPO',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Create a new service from a GitHub repository',
+			description:
+				'Create a new service from a GitHub repository. Railway will automatically detect the framework, install dependencies, build, and deploy your application.',
 			bestFor: [
-				'Deploying applications from source code',
-				'Services that need build processes',
-				'GitHub-hosted projects',
+				'Deploying web applications from source code',
+				'Services that need automatic build processes (Node.js, Python, Go, etc.)',
+				'GitHub-hosted projects with standard project structures',
+				'Applications requiring custom build and start commands',
 			],
 			notFor: [
 				'Pre-built Docker images (use RAILWAY_SERVICE_CREATE_FROM_IMAGE)',
-				'Database deployments (use RAILWAY_DATABASE_DEPLOY)',
-				'Static file hosting',
+				'Standard database deployments (use RAILWAY_TEMPLATE_DEPLOY)',
+				'Static file hosting (consider static site hosts)',
+				'Non-GitHub repositories (use Docker image approach)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_PROJECT_LIST'],
-				nextSteps: ['RAILWAY_VARIABLE_SET', 'RAILWAY_SERVICE_UPDATE'],
+				nextSteps: ['RAILWAY_SERVICE_INFO', 'RAILWAY_VARIABLE_SET'],
 				alternatives: [
 					'RAILWAY_SERVICE_CREATE_FROM_IMAGE',
-					'RAILWAY_DATABASE_DEPLOY',
+					'RAILWAY_TEMPLATE_DEPLOY',
 				],
-				related: ['RAILWAY_DEPLOYMENT_TRIGGER', 'RAILWAY_SERVICE_INFO'],
+				related: ['RAILWAY_DEPLOYMENT_TRIGGER', 'RAILWAY_DOMAIN_CREATE'],
 			},
 		}),
 		schema: serviceCreateFromRepoToolSchema,
@@ -307,29 +388,31 @@ const allTools = [
 		name: 'RAILWAY_SERVICE_CREATE_FROM_IMAGE',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Create a new service from a Docker image',
+			description:
+				'Create a new service from a Docker image. Ideal for deploying pre-built containers, custom databases, or specific software versions.',
 			bestFor: [
-				'Custom database deployments',
-				'Pre-built container deployments',
-				'Specific version requirements',
+				'Custom database deployments with specific configurations',
+				'Pre-built container deployments from Docker Hub or registries',
+				'Specific software versions or custom-built images',
+				'Services that require precise environment control',
 			],
 			notFor: [
-				'Standard database deployments (use RAILWAY_DATABASE_DEPLOY)',
+				'Standard database deployments (use RAILWAY_TEMPLATE_DEPLOY)',
 				'GitHub repository deployments (use RAILWAY_SERVICE_CREATE_FROM_REPO)',
-				'Services needing build process',
+				'Applications needing build processes from source',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_PROJECT_LIST'],
 				nextSteps: [
 					'RAILWAY_VARIABLE_SET',
-					'RAILWAY_SERVICE_UPDATE',
+					'RAILWAY_SERVICE_INFO',
 					'RAILWAY_TCP_PROXY_CREATE',
 				],
 				alternatives: [
-					'RAILWAY_DATABASE_DEPLOY',
+					'RAILWAY_TEMPLATE_DEPLOY',
 					'RAILWAY_SERVICE_CREATE_FROM_REPO',
 				],
-				related: ['RAILWAY_VOLUME_CREATE', 'RAILWAY_DEPLOYMENT_TRIGGER'],
+				related: ['RAILWAY_VOLUME_CREATE', 'RAILWAY_DOMAIN_CREATE'],
 			},
 		}),
 		schema: serviceCreateFromImageToolSchema,
@@ -339,20 +422,22 @@ const allTools = [
 		name: 'RAILWAY_SERVICE_UPDATE',
 		description: formatToolDescription({
 			type: 'API',
-			description: "Update a service's configuration",
+			description:
+				'Update a service configuration including build commands, resource limits, health checks, and deployment settings. Changes may require redeployment.',
 			bestFor: [
-				'Changing service settings',
-				'Updating resource limits',
-				'Modifying deployment configuration',
+				'Changing build and start commands for custom deployments',
+				'Updating resource limits and replica counts for scaling',
+				'Modifying deployment configuration and health checks',
+				'Configuring sleep mode and regional deployment settings',
 			],
 			notFor: [
 				'Updating environment variables (use RAILWAY_VARIABLE_SET)',
-				'Restarting services (use RAILWAY_SERVICE_RESTART)',
-				'Triggering new deployments (use RAILWAY_DEPLOYMENT_TRIGGER)',
+				'Restarting services without config changes (use RAILWAY_SERVICE_RESTART)',
+				'Triggering deployments only (use RAILWAY_DEPLOYMENT_TRIGGER)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST', 'RAILWAY_SERVICE_INFO'],
-				nextSteps: ['RAILWAY_DEPLOYMENT_TRIGGER'],
+				nextSteps: ['RAILWAY_DEPLOYMENT_TRIGGER', 'RAILWAY_SERVICE_INFO'],
 				related: ['RAILWAY_SERVICE_RESTART', 'RAILWAY_VARIABLE_SET'],
 			},
 		}),
@@ -363,15 +448,18 @@ const allTools = [
 		name: 'RAILWAY_SERVICE_DELETE',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Delete a service from a project',
+			description:
+				'Permanently delete a service from a project. WARNING: This destroys all service data, deployments, domains, and configuration. Cannot be undone.',
 			bestFor: [
-				'Removing unused services',
-				'Cleaning up test services',
-				'Project reorganization',
+				'Removing unused or obsolete services',
+				'Cleaning up test or experimental services',
+				'Project reorganization and cost management',
+				'Removing services that are no longer needed',
 			],
 			notFor: [
-				'Temporary service stoppage (use RAILWAY_SERVICE_RESTART)',
+				'Temporary service stoppage (no Railway equivalent)',
 				'Updating service configuration (use RAILWAY_SERVICE_UPDATE)',
+				'Production services without proper backup planning',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST', 'RAILWAY_SERVICE_INFO'],
@@ -386,21 +474,23 @@ const allTools = [
 		name: 'RAILWAY_SERVICE_RESTART',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Restart a service in a specific environment',
+			description:
+				'Restart a service in a specific environment without deploying new code. Useful for applying environment variable changes or clearing service state.',
 			bestFor: [
-				'Applying configuration changes',
-				'Clearing service state',
-				'Resolving runtime issues',
+				'Applying environment variable changes without redeployment',
+				'Clearing service state and memory leaks',
+				'Resolving runtime issues and hung processes',
+				'Quick service recovery without full deployment',
 			],
 			notFor: [
-				'Deploying new code (use RAILWAY_DEPLOYMENT_TRIGGER)',
-				'Updating service config (use RAILWAY_SERVICE_UPDATE)',
-				'Long-term service stoppage (use RAILWAY_SERVICE_DELETE)',
+				'Deploying new code changes (use RAILWAY_DEPLOYMENT_TRIGGER)',
+				'Updating service configuration (use RAILWAY_SERVICE_UPDATE first)',
+				'Permanent service stoppage (use RAILWAY_SERVICE_DELETE)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST'],
 				alternatives: ['RAILWAY_DEPLOYMENT_TRIGGER'],
-				related: ['RAILWAY_SERVICE_INFO', 'RAILWAY_DEPLOYMENT_LOGS'],
+				related: ['RAILWAY_SERVICE_INFO', 'RAILWAY_VARIABLE_SET'],
 			},
 		}),
 		schema: serviceRestartToolSchema,

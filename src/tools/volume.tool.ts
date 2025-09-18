@@ -6,7 +6,11 @@ import { UserError } from 'fastmcp';
 import { z } from 'zod';
 
 const volumeListToolSchema = z.object({
-	projectId: z.string().describe('ID of the project to list volumes for'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project to list volumes for (obtain from RAILWAY_PROJECT_LIST)',
+		),
 });
 
 const volumeListToolHandler = async (
@@ -30,16 +34,26 @@ const volumeListToolHandler = async (
 };
 
 const volumeCreateToolSchema = z.object({
-	projectId: z.string().describe('ID of the project containing the service'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project containing the service (obtain from RAILWAY_PROJECT_LIST)',
+		),
 	environmentId: z
 		.string()
 		.describe(
-			'ID of the environment for the volume (usually obtained from service_info)',
+			'ID of the environment for the volume (obtain from RAILWAY_SERVICE_LIST). Usually production environment.',
 		),
-	serviceId: z.string().describe('ID of the service to attach volume to'),
+	serviceId: z
+		.string()
+		.describe(
+			'ID of the service to attach volume to (obtain from RAILWAY_SERVICE_LIST)',
+		),
 	mountPath: z
 		.string()
-		.describe('Path where the volume should be mounted in the container'),
+		.describe(
+			'Path where the volume should be mounted in the container (e.g., "/data", "/var/lib/postgresql/data", "/app/uploads"). Must be an absolute path.',
+		),
 });
 
 const volumeCreateToolHandler = async (
@@ -69,8 +83,16 @@ const volumeCreateToolHandler = async (
 };
 
 const volumeUpdateToolSchema = z.object({
-	volumeId: z.string().describe('ID of the volume to update'),
-	name: z.string().describe('New name for the volume'),
+	volumeId: z
+		.string()
+		.describe(
+			'ID of the volume to update (obtain from RAILWAY_VOLUME_LIST response)',
+		),
+	name: z
+		.string()
+		.describe(
+			'New descriptive name for the volume (e.g., "Database Storage", "App Data", "User Uploads"). Used for organization and identification.',
+		),
 });
 
 const volumeUpdateToolHandler = async (
@@ -94,7 +116,11 @@ const volumeUpdateToolHandler = async (
 };
 
 const volumeDeleteToolSchema = z.object({
-	volumeId: z.string().describe('ID of the volume to delete'),
+	volumeId: z
+		.string()
+		.describe(
+			'ID of the volume to delete (obtain from RAILWAY_VOLUME_LIST). WARNING: This permanently destroys all data stored in the volume.',
+		),
 });
 
 const volumeDeleteToolHandler = async (
@@ -122,16 +148,23 @@ const allTools = [
 		name: 'RAILWAY_VOLUME_LIST',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'List all volumes in a project',
+			description:
+				'List all persistent volumes in a project. Shows volume names, mount paths, attached services, and storage usage information.',
 			bestFor: [
-				'Viewing persistent storage configurations',
-				'Managing data volumes',
-				'Auditing storage usage',
+				'Viewing persistent storage configurations and usage',
+				'Managing data volumes across services',
+				'Auditing storage usage and costs',
+				'Getting volume IDs for management operations',
+			],
+			notFor: [
+				'Creating new volumes (use RAILWAY_VOLUME_CREATE)',
+				'Viewing service-specific information (use RAILWAY_SERVICE_INFO)',
+				'Managing temporary storage (volumes are persistent)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_PROJECT_LIST'],
-				nextSteps: ['RAILWAY_VOLUME_CREATE'],
-				related: ['RAILWAY_SERVICE_INFO', 'RAILWAY_DATABASE_DEPLOY'],
+				nextSteps: ['RAILWAY_VOLUME_CREATE', 'RAILWAY_VOLUME_UPDATE'],
+				related: ['RAILWAY_SERVICE_INFO', 'RAILWAY_SERVICE_LIST'],
 			},
 		}),
 		schema: volumeListToolSchema,
@@ -141,21 +174,24 @@ const allTools = [
 		name: 'RAILWAY_VOLUME_CREATE',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Create a new persistent volume for a service',
+			description:
+				'Create a new persistent volume for a service. Volumes provide persistent storage that survives service restarts and deployments.',
 			bestFor: [
-				'Setting up database storage',
-				'Configuring persistent data',
-				'Adding file storage',
+				'Setting up database storage for data persistence',
+				'Configuring file uploads and user-generated content storage',
+				'Adding persistent data directories for applications',
+				'Creating shared storage between service instances',
 			],
 			notFor: [
-				'Temporary storage needs',
-				'Static file hosting',
-				'Memory caching',
+				'Temporary storage needs (use container filesystem)',
+				'Static file hosting (consider CDN solutions)',
+				'Memory caching (use Redis or in-memory solutions)',
+				'Configuration files (use environment variables)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST'],
-				nextSteps: ['RAILWAY_VOLUME_LIST'],
-				related: ['RAILWAY_SERVICE_UPDATE', 'RAILWAY_DATABASE_DEPLOY'],
+				nextSteps: ['RAILWAY_VOLUME_LIST', 'RAILWAY_SERVICE_RESTART'],
+				related: ['RAILWAY_SERVICE_UPDATE', 'RAILWAY_TEMPLATE_DEPLOY'],
 			},
 		}),
 		schema: volumeCreateToolSchema,
@@ -165,16 +201,23 @@ const allTools = [
 		name: 'RAILWAY_VOLUME_UPDATE',
 		description: formatToolDescription({
 			type: 'API',
-			description: "Update a volume's properties",
+			description:
+				'Update a volume properties like its display name. Note: Mount path and size cannot be changed after creation.',
 			bestFor: [
-				'Renaming volumes',
-				'Volume management',
-				'Organization updates',
+				'Renaming volumes for better organization and clarity',
+				'Updating volume descriptions and metadata',
+				'Volume management and documentation',
+				'Improving volume identification in large projects',
+			],
+			notFor: [
+				'Changing mount paths (requires recreation)',
+				'Resizing volumes (not supported)',
+				'Moving volumes between services (requires recreation)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_VOLUME_LIST'],
 				nextSteps: ['RAILWAY_VOLUME_LIST'],
-				related: ['RAILWAY_SERVICE_UPDATE'],
+				related: ['RAILWAY_VOLUME_CREATE'],
 			},
 		}),
 		schema: volumeUpdateToolSchema,
@@ -184,19 +227,23 @@ const allTools = [
 		name: 'RAILWAY_VOLUME_DELETE',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Delete a volume from a service',
+			description:
+				'Permanently delete a volume and ALL its data. WARNING: This action cannot be undone and will destroy all files and data stored in the volume.',
 			bestFor: [
-				'Removing unused storage',
-				'Storage cleanup',
-				'Resource management',
+				'Removing unused storage to reduce costs',
+				'Cleaning up obsolete data volumes',
+				'Project cleanup and resource management',
+				'Removing volumes from deleted services',
 			],
 			notFor: [
-				'Temporary data removal',
-				'Data backup (use volume_backup first)',
+				'Temporary data removal (data is permanently lost)',
+				'Production volumes without proper backup procedures',
+				'Volumes with important data (backup externally first)',
+				'Resizing volumes (not supported - recreate instead)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_VOLUME_LIST'],
-				related: ['RAILWAY_SERVICE_UPDATE'],
+				related: ['RAILWAY_VOLUME_CREATE'],
 			},
 		}),
 		schema: volumeDeleteToolSchema,

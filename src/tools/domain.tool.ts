@@ -6,13 +6,21 @@ import { UserError } from 'fastmcp';
 import { z } from 'zod';
 
 const domainListToolSchema = z.object({
-	projectId: z.string().describe('ID of the project containing the service'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project containing the service (obtain from RAILWAY_PROJECT_LIST)',
+		),
 	environmentId: z
 		.string()
 		.describe(
-			'ID of the environment that the service is in to list domains from (usually obtained from service_list)',
+			'ID of the environment that the service is in (obtain from RAILWAY_SERVICE_LIST response). Usually production or staging environment.',
 		),
-	serviceId: z.string().describe('ID of the service to list domains for'),
+	serviceId: z
+		.string()
+		.describe(
+			'ID of the service to list domains for (obtain from RAILWAY_SERVICE_LIST)',
+		),
 });
 
 const domainListToolHandler = async (
@@ -37,25 +45,33 @@ const domainListToolHandler = async (
 };
 
 const domainCreateToolSchema = z.object({
-	environmentId: z.string().describe('ID of the environment'),
-	serviceId: z.string().describe('ID of the service'),
+	environmentId: z
+		.string()
+		.describe(
+			'ID of the environment (obtain from RAILWAY_SERVICE_LIST response)',
+		),
+	serviceId: z
+		.string()
+		.describe(
+			'ID of the service to create domain for (obtain from RAILWAY_SERVICE_LIST)',
+		),
 	domain: z
 		.string()
 		.optional()
 		.describe(
-			"Custom domain name (optional, as railway will generate one for you and is generally better to leave it up to railway to generate one. There's usually no need to specify this and there are no use cases for overriding it.)",
+			"Optional: Custom domain name (e.g., 'api.myapp.com'). RECOMMENDED TO OMIT - Railway auto-generates optimized domains. Only specify for custom domain requirements.",
 		),
 	suffix: z
 		.string()
 		.optional()
 		.describe(
-			'Suffix for the domain (optional, railway will generate one for you and is generally better to leave it up to railway to generate one.)',
+			'Optional: Domain suffix. RECOMMENDED TO OMIT - Railway auto-generates appropriate suffixes. Only needed for specific domain naming requirements.',
 		),
 	targetPort: z
 		.number()
 		.optional()
 		.describe(
-			'Target port for the domain (optional, as railway will use the default port for the service and detect it automatically.)',
+			'Optional: Port number to route traffic to (e.g., 3000, 8080). RECOMMENDED TO OMIT - Railway auto-detects the correct port from your service configuration.',
 		),
 });
 
@@ -87,7 +103,11 @@ const domainCreateToolHandler = async (
 };
 
 const domainCheckToolSchema = z.object({
-	domain: z.string().describe('Domain name to check availability for'),
+	domain: z
+		.string()
+		.describe(
+			'Domain name to check availability for (e.g., "myapp.railway.app" or "api.mycompany.com"). Used before creating custom domains.',
+		),
 });
 
 const domainCheckToolHandler = async (
@@ -111,8 +131,16 @@ const domainCheckToolHandler = async (
 };
 
 const domainUpdateToolSchema = z.object({
-	id: z.string().describe('ID of the domain to update'),
-	targetPort: z.number().describe('New port number to route traffic to'),
+	id: z
+		.string()
+		.describe(
+			'ID of the domain to update (obtain from RAILWAY_DOMAIN_LIST response)',
+		),
+	targetPort: z
+		.number()
+		.describe(
+			'New port number to route traffic to (e.g., 3000, 8080, 5432). Must match a port your service is listening on.',
+		),
 });
 
 const domainUpdateToolHandler = async (
@@ -136,7 +164,11 @@ const domainUpdateToolHandler = async (
 };
 
 const domainDeleteToolSchema = z.object({
-	id: z.string().describe('ID of the domain to delete'),
+	id: z
+		.string()
+		.describe(
+			'ID of the domain to delete (obtain from RAILWAY_DOMAIN_LIST response). WARNING: This will make the domain inaccessible.',
+		),
 });
 
 const domainDeleteToolHandler = async (
@@ -164,11 +196,18 @@ const allTools = [
 		name: 'RAILWAY_DOMAIN_LIST',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'List all domains (both service and custom) for a service',
+			description:
+				'List all domains (both Railway-generated and custom) for a service. Shows domain URLs, SSL status, target ports, and domain IDs needed for management operations.',
 			bestFor: [
-				'Viewing service endpoints',
-				'Managing domain configurations',
-				'Auditing domain settings',
+				'Viewing all service endpoints and public URLs',
+				'Managing domain configurations and SSL certificates',
+				'Auditing domain settings and port configurations',
+				'Getting domain IDs for update or delete operations',
+			],
+			notFor: [
+				'Creating new domains (use RAILWAY_DOMAIN_CREATE)',
+				'Checking domain availability (use RAILWAY_DOMAIN_CHECK)',
+				'TCP proxy endpoints (use RAILWAY_TCP_PROXY_LIST)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST'],
@@ -183,21 +222,24 @@ const allTools = [
 		name: 'RAILWAY_DOMAIN_CREATE',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Create a new domain for a service',
+			description:
+				'Create a new HTTP/HTTPS domain for a service. Railway automatically generates optimized domains with SSL certificates. Custom domains require DNS configuration.',
 			bestFor: [
-				'Setting up custom domains',
-				'Configuring service endpoints',
-				'Adding HTTPS endpoints',
+				'Setting up public web endpoints for applications',
+				'Creating Railway-generated domains (recommended approach)',
+				'Configuring custom domains with your own DNS',
+				'Adding HTTPS endpoints with automatic SSL certificates',
 			],
 			notFor: [
-				'TCP proxy setup (use RAILWAY_TCP_PROXY_CREATE)',
-				'Internal service communication',
+				'Database connections (use RAILWAY_TCP_PROXY_CREATE)',
+				'Internal service-to-service communication (use private networking)',
+				'Non-HTTP protocols (use RAILWAY_TCP_PROXY_CREATE)',
 			],
 			relations: {
-				prerequisites: ['RAILWAY_SERVICE_LIST', 'RAILWAY_DOMAIN_CHECK'],
-				nextSteps: ['RAILWAY_DOMAIN_UPDATE'],
+				prerequisites: ['RAILWAY_SERVICE_LIST'],
+				nextSteps: ['RAILWAY_DOMAIN_LIST', 'RAILWAY_DOMAIN_UPDATE'],
 				alternatives: ['RAILWAY_TCP_PROXY_CREATE'],
-				related: ['RAILWAY_SERVICE_INFO', 'RAILWAY_DOMAIN_LIST'],
+				related: ['RAILWAY_DOMAIN_CHECK', 'RAILWAY_SERVICE_INFO'],
 			},
 		}),
 		schema: domainCreateToolSchema,
@@ -207,15 +249,22 @@ const allTools = [
 		name: 'RAILWAY_DOMAIN_CHECK',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Check if a domain is available for use',
+			description:
+				'Check if a domain name is available for use on Railway. Validates domain format and availability before attempting to create custom domains.',
 			bestFor: [
-				'Validating domain availability',
-				'Pre-deployment checks',
-				'Domain planning',
+				'Validating custom domain availability before creation',
+				'Pre-deployment domain planning and validation',
+				'Checking domain name conflicts and formatting',
+				'Verifying domain ownership requirements',
+			],
+			notFor: [
+				'Checking Railway-generated domains (always available)',
+				'Domain DNS configuration validation',
+				'SSL certificate status checks',
 			],
 			relations: {
 				nextSteps: ['RAILWAY_DOMAIN_CREATE'],
-				related: ['RAILWAY_DOMAIN_LIST'],
+				related: ['RAILWAY_DOMAIN_LIST', 'RAILWAY_DOMAIN_CREATE'],
 			},
 		}),
 		schema: domainCheckToolSchema,
@@ -225,20 +274,23 @@ const allTools = [
 		name: 'RAILWAY_DOMAIN_UPDATE',
 		description: formatToolDescription({
 			type: 'API',
-			description: "Update a domain's configuration",
+			description:
+				'Update a domain configuration, primarily the target port. Use when your service changes ports or you need to route traffic differently.',
 			bestFor: [
-				'Changing target ports',
-				'Updating domain settings',
-				'Reconfiguring endpoints',
+				'Changing target ports when service configuration changes',
+				'Redirecting traffic to different application ports',
+				'Reconfiguring endpoints after service updates',
+				'Fixing port misconfigurations causing 502/503 errors',
 			],
 			notFor: [
 				'Changing domain names (delete and recreate instead)',
-				'TCP proxy configuration',
+				'TCP proxy port configuration (use RAILWAY_TCP_PROXY_CREATE)',
+				'SSL certificate management (handled automatically)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_DOMAIN_LIST'],
-				nextSteps: ['RAILWAY_DOMAIN_LIST'],
-				related: ['RAILWAY_SERVICE_UPDATE'],
+				nextSteps: ['RAILWAY_DOMAIN_LIST', 'RAILWAY_SERVICE_INFO'],
+				related: ['RAILWAY_SERVICE_UPDATE', 'RAILWAY_DEPLOYMENT_TRIGGER'],
 			},
 		}),
 		schema: domainUpdateToolSchema,
@@ -248,20 +300,23 @@ const allTools = [
 		name: 'RAILWAY_DOMAIN_DELETE',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Delete a domain from a service',
+			description:
+				'Delete a domain from a service. WARNING: This immediately makes the domain inaccessible and cannot be undone. Use carefully in production.',
 			bestFor: [
-				'Removing unused domains',
-				'Cleaning up configurations',
-				'Domain management',
+				'Removing unused or obsolete domains',
+				'Cleaning up test or staging domain configurations',
+				'Domain management and security cleanup',
+				'Removing accidentally created domains',
 			],
 			notFor: [
-				'Temporary domain disabling',
-				'Port updates (use RAILWAY_DOMAIN_UPDATE)',
+				'Temporary domain disabling (no Railway equivalent)',
+				'Port updates (use RAILWAY_DOMAIN_UPDATE instead)',
+				'Production domains without proper backup planning',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_DOMAIN_LIST'],
 				alternatives: ['RAILWAY_DOMAIN_UPDATE'],
-				related: ['RAILWAY_SERVICE_UPDATE'],
+				related: ['RAILWAY_DOMAIN_CREATE'],
 			},
 		}),
 		schema: domainDeleteToolSchema,

@@ -8,8 +8,14 @@ import { z } from 'zod';
 const tcpProxyListToolSchema = z.object({
 	environmentId: z
 		.string()
-		.describe('ID of the environment containing the service'),
-	serviceId: z.string().describe('ID of the service to list TCP proxies for'),
+		.describe(
+			'ID of the environment containing the service (obtain from RAILWAY_SERVICE_LIST)',
+		),
+	serviceId: z
+		.string()
+		.describe(
+			'ID of the service to list TCP proxies for (obtain from RAILWAY_SERVICE_LIST)',
+		),
 });
 
 const tcpProxyListToolHandler = async (
@@ -35,12 +41,18 @@ const tcpProxyListToolHandler = async (
 const tcpProxyCreateToolSchema = z.object({
 	environmentId: z
 		.string()
-		.describe('ID of the environment (usually obtained from service_info)'),
-	serviceId: z.string().describe('ID of the service'),
+		.describe(
+			'ID of the environment (obtain from RAILWAY_SERVICE_LIST or RAILWAY_SERVICE_INFO)',
+		),
+	serviceId: z
+		.string()
+		.describe(
+			'ID of the service to create TCP proxy for (obtain from RAILWAY_SERVICE_LIST)',
+		),
 	applicationPort: z
 		.number()
 		.describe(
-			"Port of application/service to proxy, usually based off of the service's Dockerfile or designated running port.",
+			"Port number that your application/service listens on (e.g., 5432 for PostgreSQL, 3306 for MySQL, 6379 for Redis, 27017 for MongoDB). Check your service's Dockerfile EXPOSE statement or application configuration.",
 		),
 });
 
@@ -70,7 +82,11 @@ const tcpProxyCreateToolHandler = async (
 };
 
 const tcpProxyDeleteToolSchema = z.object({
-	proxyId: z.string().describe('ID of the TCP proxy to delete'),
+	proxyId: z
+		.string()
+		.describe(
+			'ID of the TCP proxy to delete (obtain from RAILWAY_TCP_PROXY_LIST response). WARNING: This will break external connections.',
+		),
 });
 
 const tcpProxyDeleteToolHandler = async (
@@ -99,11 +115,17 @@ const allTools = [
 		description: formatToolDescription({
 			type: 'API',
 			description:
-				'List all TCP proxies for a service in a specific environment',
+				'List all TCP proxies for a service in a specific environment. TCP proxies provide external access to non-HTTP services like databases.',
 			bestFor: [
-				'Viewing TCP proxy configurations',
-				'Managing external access',
-				'Auditing service endpoints',
+				'Viewing TCP proxy configurations and connection details',
+				'Managing external database and service access',
+				'Getting connection strings for database clients',
+				'Auditing service endpoints and security configurations',
+			],
+			notFor: [
+				'HTTP/HTTPS endpoints (use RAILWAY_DOMAIN_LIST)',
+				'Creating new TCP proxies (use RAILWAY_TCP_PROXY_CREATE)',
+				'Internal service communication (use private networking)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST'],
@@ -118,21 +140,24 @@ const allTools = [
 		name: 'RAILWAY_TCP_PROXY_CREATE',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Create a new TCP proxy for a service',
+			description:
+				'Create a new TCP proxy for a service to enable external connections. Essential for database access and non-HTTP services.',
 			bestFor: [
-				'Setting up database access',
-				'Configuring external connections',
-				'Exposing TCP services',
+				'Setting up external database access (PostgreSQL, MySQL, MongoDB, Redis)',
+				'Configuring connections for database management tools',
+				'Exposing TCP-based services to external applications',
+				'Enabling direct database connections from local development',
 			],
 			notFor: [
-				'HTTP/HTTPS endpoints (use RAILWAY_DOMAIN_CREATE)',
-				'Internal service communication',
+				'HTTP/HTTPS web endpoints (use RAILWAY_DOMAIN_CREATE)',
+				'Internal service-to-service communication (use private networking)',
+				'REST API endpoints (use domains instead)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST'],
-				nextSteps: ['RAILWAY_TCP_PROXY_LIST'],
+				nextSteps: ['RAILWAY_TCP_PROXY_LIST', 'RAILWAY_VARIABLE_LIST'],
 				alternatives: ['RAILWAY_DOMAIN_CREATE'],
-				related: ['RAILWAY_SERVICE_INFO', 'RAILWAY_SERVICE_UPDATE'],
+				related: ['RAILWAY_SERVICE_INFO', 'RAILWAY_VARIABLE_SET'],
 			},
 		}),
 		schema: tcpProxyCreateToolSchema,
@@ -142,16 +167,22 @@ const allTools = [
 		name: 'RAILWAY_TCP_PROXY_DELETE',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Delete a TCP proxy',
+			description:
+				'Delete a TCP proxy and remove external access. WARNING: This immediately breaks all external connections using this proxy.',
 			bestFor: [
-				'Removing unused proxies',
-				'Security management',
-				'Endpoint cleanup',
+				'Removing unused or obsolete TCP proxies',
+				'Security management and access control',
+				'Cleaning up database connection endpoints',
+				'Cost optimization by removing unnecessary proxies',
 			],
-			notFor: ['Temporary proxy disabling', 'Port updates'],
+			notFor: [
+				'Temporary proxy disabling (no Railway equivalent)',
+				'Port updates (delete and recreate proxy)',
+				'Production database proxies without connection migration',
+			],
 			relations: {
 				prerequisites: ['RAILWAY_TCP_PROXY_LIST'],
-				related: ['RAILWAY_SERVICE_UPDATE'],
+				related: ['RAILWAY_TCP_PROXY_CREATE'],
 			},
 		}),
 		schema: tcpProxyDeleteToolSchema,

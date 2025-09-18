@@ -6,17 +6,21 @@ import { UserError } from 'fastmcp';
 import { z } from 'zod';
 
 const variableListToolSchema = z.object({
-	projectId: z.string().describe('ID of the project containing the service'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project containing the service (obtain from RAILWAY_PROJECT_LIST)',
+		),
 	environmentId: z
 		.string()
 		.describe(
-			'ID of the environment to list variables from (usually obtained from service_list)',
+			'ID of the environment to list variables from (obtain from RAILWAY_SERVICE_LIST or RAILWAY_PROJECT_ENVIRONMENTS). Usually production environment.',
 		),
 	serviceId: z
 		.string()
 		.optional()
 		.describe(
-			'Optional: ID of the service to list variables for, if not provided, shared variables across all services will be listed',
+			'Optional: ID of the service to list variables for (obtain from RAILWAY_SERVICE_LIST). If omitted, lists shared variables available to all services in the environment.',
 		),
 });
 
@@ -42,19 +46,31 @@ const variableListToolHandler = async (
 };
 
 const variableSetToolSchema = z.object({
-	projectId: z.string().describe('ID of the project containing the service'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project containing the service (obtain from RAILWAY_PROJECT_LIST)',
+		),
 	environmentId: z
 		.string()
 		.describe(
-			'ID of the environment for the variable (usually obtained from service_list)',
+			'ID of the environment for the variable (obtain from RAILWAY_SERVICE_LIST). Usually production environment.',
 		),
-	name: z.string().describe('Name of the environment variable'),
-	value: z.string().describe('Value to set for the variable'),
+	name: z
+		.string()
+		.describe(
+			'Name of the environment variable (e.g., "DATABASE_URL", "API_KEY", "PORT"). Use UPPERCASE with underscores by convention.',
+		),
+	value: z
+		.string()
+		.describe(
+			'Value to set for the variable. Can be connection strings, API keys, configuration values, etc. Be careful with sensitive data.',
+		),
 	serviceId: z
 		.string()
 		.optional()
 		.describe(
-			'Optional: ID of the service for the variable, if omitted creates/updates a shared variable',
+			'Optional: ID of the service for the variable (obtain from RAILWAY_SERVICE_LIST). If omitted, creates a shared variable available to all services.',
 		),
 });
 
@@ -86,18 +102,24 @@ const variableSetToolHandler = async (
 };
 
 const variableDeleteToolSchema = z.object({
-	projectId: z.string().describe('ID of the project'),
+	projectId: z
+		.string()
+		.describe('ID of the project (obtain from RAILWAY_PROJECT_LIST)'),
 	environmentId: z
 		.string()
 		.describe(
-			'ID of the environment to delete the variable from (usually obtained from service_list)',
+			'ID of the environment to delete the variable from (obtain from RAILWAY_SERVICE_LIST). Usually production environment.',
 		),
-	name: z.string().describe('Name of the variable to delete'),
+	name: z
+		.string()
+		.describe(
+			'Name of the variable to delete (e.g., "DATABASE_URL", "API_KEY"). Must match exactly including case.',
+		),
 	serviceId: z
 		.string()
 		.optional()
 		.describe(
-			'ID of the service (optional, if omitted deletes a shared variable)',
+			'Optional: ID of the service (obtain from RAILWAY_SERVICE_LIST). If omitted, deletes a shared variable.',
 		),
 });
 
@@ -128,20 +150,26 @@ const variableDeleteToolHandler = async (
 };
 
 const variableBulkSetToolSchema = z.object({
-	projectId: z.string().describe('ID of the project containing the service'),
+	projectId: z
+		.string()
+		.describe(
+			'ID of the project containing the service (obtain from RAILWAY_PROJECT_LIST)',
+		),
 	environmentId: z
 		.string()
 		.describe(
-			'ID of the environment for the variables (usually obtained from service_list)',
+			'ID of the environment for the variables (obtain from RAILWAY_SERVICE_LIST). Usually production environment.',
 		),
 	variables: z
 		.record(z.string(), z.any())
-		.describe('Object mapping variable names to values'),
+		.describe(
+			'Object mapping variable names to values (e.g., {"DATABASE_URL": "postgres://...", "API_KEY": "abc123", "PORT": "3000"}). Keys should be UPPERCASE with underscores.',
+		),
 	serviceId: z
 		.string()
 		.optional()
 		.describe(
-			'Optional: ID of the service for the variables, if omitted updates shared variables)',
+			'Optional: ID of the service for the variables (obtain from RAILWAY_SERVICE_LIST). If omitted, updates shared variables available to all services.',
 		),
 });
 
@@ -172,29 +200,31 @@ const variableBulkSetToolHandler = async (
 };
 
 const variableCopyToolSchema = z.object({
-	projectId: z.string().describe('ID of the project'),
+	projectId: z
+		.string()
+		.describe('ID of the project (obtain from RAILWAY_PROJECT_LIST)'),
 	sourceEnvironmentId: z
 		.string()
 		.describe(
-			'ID of the source environment (usually obtained from project_info)',
+			'ID of the source environment to copy variables from (obtain from RAILWAY_PROJECT_ENVIRONMENTS).',
 		),
 	targetEnvironmentId: z
 		.string()
 		.describe(
-			'ID of the target environment (usually obtained from project_info)',
+			'ID of the target environment to copy variables to (obtain from RAILWAY_PROJECT_ENVIRONMENTS). Must be different from source.',
 		),
 	serviceId: z
 		.string()
 		.optional()
 		.describe(
-			'ID of the service (optional, if omitted copies shared variables)',
+			'Optional: ID of the service (obtain from RAILWAY_SERVICE_LIST). If omitted, copies shared variables between environments.',
 		),
 	overwrite: z
 		.boolean()
 		.optional()
 		.default(false)
 		.describe(
-			'Whether to overwrite existing variables in the target environment',
+			'Whether to overwrite existing variables in the target environment. Default: false (skip existing variables).',
 		),
 });
 
@@ -235,11 +265,18 @@ const allTools = [
 		name: 'RAILWAY_VARIABLE_LIST',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'List all environment variables for a service',
+			description:
+				'List all environment variables for a service or shared variables in an environment. Shows variable names, values, and whether they are service-specific or shared.',
 			bestFor: [
-				'Viewing service configuration',
-				'Auditing environment variables',
-				'Checking connection strings',
+				'Viewing current service configuration and environment variables',
+				'Auditing environment variables and sensitive data',
+				'Checking database connection strings and API keys',
+				'Understanding service configuration before making changes',
+			],
+			notFor: [
+				'Setting new variables (use RAILWAY_VARIABLE_SET)',
+				'Getting service runtime information (use RAILWAY_SERVICE_INFO)',
+				'Managing multiple variables at once (use RAILWAY_VARIABLE_BULK_SET)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST'],
@@ -254,19 +291,22 @@ const allTools = [
 		name: 'RAILWAY_VARIABLE_SET',
 		description: formatToolDescription({
 			type: 'API',
-			description: 'Create or update an environment variable',
+			description:
+				'Create or update a single environment variable. Changes take effect after service restart or redeployment. Use for configuration values, API keys, and connection strings.',
 			bestFor: [
-				'Setting configuration values',
-				'Updating connection strings',
-				'Managing service secrets',
+				'Setting individual configuration values (DATABASE_URL, API_KEY, etc.)',
+				'Updating database connection strings and service URLs',
+				'Managing service secrets and authentication tokens',
+				'Configuring application-specific environment settings',
 			],
 			notFor: [
-				'Bulk variable updates (use RAILWAY_VARIABLE_BULK_SET)',
-				'Temporary configuration changes',
+				'Setting multiple variables at once (use RAILWAY_VARIABLE_BULK_SET)',
+				'Temporary configuration changes (variables persist)',
+				'Service configuration like ports or commands (use RAILWAY_SERVICE_UPDATE)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST'],
-				nextSteps: ['RAILWAY_DEPLOYMENT_TRIGGER', 'RAILWAY_SERVICE_RESTART'],
+				nextSteps: ['RAILWAY_SERVICE_RESTART', 'RAILWAY_DEPLOYMENT_TRIGGER'],
 				alternatives: ['RAILWAY_VARIABLE_BULK_SET'],
 				related: ['RAILWAY_VARIABLE_LIST', 'RAILWAY_VARIABLE_DELETE'],
 			},
@@ -298,21 +338,24 @@ const allTools = [
 		name: 'RAILWAY_VARIABLE_BULK_SET',
 		description: formatToolDescription({
 			type: 'WORKFLOW',
-			description: 'Create or update multiple environment variables at once',
+			description:
+				'Create or update multiple environment variables at once. Efficient for setting up service configurations, migrating settings, or bulk updates.',
 			bestFor: [
-				'Migrating configuration between services',
-				'Initial service setup',
-				'Bulk configuration updates',
+				'Initial service setup with multiple configuration values',
+				'Migrating configuration between services or environments',
+				'Bulk configuration updates for application settings',
+				'Setting up database connections with multiple related variables',
 			],
 			notFor: [
-				'Single variable updates (use RAILWAY_VARIABLE_SET)',
-				'Temporary configuration changes',
+				'Single variable updates (use RAILWAY_VARIABLE_SET for efficiency)',
+				'Temporary configuration changes (variables persist)',
+				'Service-level configuration (use RAILWAY_SERVICE_UPDATE)',
 			],
 			relations: {
 				prerequisites: ['RAILWAY_SERVICE_LIST'],
-				nextSteps: ['RAILWAY_DEPLOYMENT_TRIGGER', 'RAILWAY_SERVICE_RESTART'],
+				nextSteps: ['RAILWAY_SERVICE_RESTART', 'RAILWAY_DEPLOYMENT_TRIGGER'],
 				alternatives: ['RAILWAY_VARIABLE_SET'],
-				related: ['RAILWAY_VARIABLE_LIST', 'RAILWAY_SERVICE_UPDATE'],
+				related: ['RAILWAY_VARIABLE_COPY', 'RAILWAY_VARIABLE_LIST'],
 			},
 		}),
 		schema: variableBulkSetToolSchema,
@@ -322,21 +365,27 @@ const allTools = [
 		name: 'RAILWAY_VARIABLE_COPY',
 		description: formatToolDescription({
 			type: 'WORKFLOW',
-			description: 'Copy variables from one environment to another',
+			description:
+				'Copy variables from one environment to another within the same project. Useful for promoting configurations or setting up new environments.',
 			bestFor: [
-				'Environment migration',
-				'Configuration sharing',
-				'Environment duplication',
+				'Promoting configuration from staging to production',
+				'Setting up new environments with existing configurations',
+				'Duplicating environment settings for consistency',
+				'Migrating variables between project environments',
 			],
 			notFor: [
+				'Copying between different projects (manual recreation needed)',
 				'Single variable updates (use RAILWAY_VARIABLE_SET)',
-				'Temporary configuration changes',
+				'Temporary configuration changes (variables persist)',
 			],
 			relations: {
-				prerequisites: ['RAILWAY_SERVICE_LIST'],
-				nextSteps: ['RAILWAY_DEPLOYMENT_TRIGGER', 'RAILWAY_SERVICE_RESTART'],
-				alternatives: ['RAILWAY_VARIABLE_SET'],
-				related: ['RAILWAY_VARIABLE_LIST', 'RAILWAY_SERVICE_UPDATE'],
+				prerequisites: [
+					'RAILWAY_PROJECT_ENVIRONMENTS',
+					'RAILWAY_VARIABLE_LIST',
+				],
+				nextSteps: ['RAILWAY_SERVICE_RESTART', 'RAILWAY_DEPLOYMENT_TRIGGER'],
+				alternatives: ['RAILWAY_VARIABLE_BULK_SET'],
+				related: ['RAILWAY_VARIABLE_LIST', 'RAILWAY_PROJECT_ENVIRONMENTS'],
 			},
 		}),
 		schema: variableCopyToolSchema,
