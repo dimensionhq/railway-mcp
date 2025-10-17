@@ -5,6 +5,8 @@ const envSchema = z.object({
 
 	PORT: z.coerce.number().int().min(1).max(65535),
 
+	MCP_HTTP_HOST: z.string().default('0.0.0.0'),
+
 	SENTRY_DSN: z.string(),
 });
 

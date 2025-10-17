@@ -62,6 +62,7 @@ server.start({
 	transportType: 'httpStream',
 	httpStream: {
 		port: env.PORT,
+		host: env.MCP_HTTP_HOST,
 		stateless: true,
 	},
 });
