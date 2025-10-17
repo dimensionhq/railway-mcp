@@ -48,8 +48,9 @@ RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
 ########## runtime stage ##########
 FROM node:22-alpine AS runtime
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache bash curl sudo
+# Install PM2 globally for process management
+RUN npm install -g pm2@latest
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
@@ -60,8 +61,8 @@ WORKDIR /app
 # Set production environment
 ENV NODE_ENV=production
 ENV MCP_HTTP_HOST=0.0.0.0
-ENV MCP_HTTP_PORT=3000
-ENV PORT=3000
+ENV MCP_HTTP_PORT=3008
+ENV PORT=3008
 
 # Copy production dependencies
 COPY --from=prod-deps --chown=nodejs:nodejs /app/node_modules ./node_modules
@@ -71,17 +72,17 @@ COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
 
 # Copy package.json for the start script
 COPY --chown=nodejs:nodejs package.json ./
+COPY --chown=nodejs:nodejs ecosystem.config.js ./
 
 # Switch to non-root user
 USER nodejs
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:${PORT}/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+  CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3008
 
-# Use dumb-init to handle signals properly and run the start command from package.json
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["npm", "start"]
+# Use PM2-runtime for process management and auto-recovery
+CMD ["pm2-runtime", "start", "ecosystem.config.js"]
